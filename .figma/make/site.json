@@ -1,0 +1,14 @@
+{
+  "title": "RAAHAT — Victim Support Platform",
+  "icons": {
+    "icon": "/raahat-emblem.svg"
+  },
+  "description": "An AI-powered platform for victims accessing the National Helpline, RAAHAT assesses emotional distress, prioritizes cases, and connects users to vital support services.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
