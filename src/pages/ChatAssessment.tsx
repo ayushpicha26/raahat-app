@@ -4,6 +4,7 @@ import UserLayout from "../components/UserLayout";
 import { Send, Mic, Globe, AlertCircle, MicOff, Sparkles } from "lucide-react";
 import { performAiAssessment } from "../utils/aiEngine";
 import { saveAssessment } from "../utils/assessmentStore";
+import { api } from "../utils/api";
 
 type Msg = { role: "ai" | "user"; text: string; time: string };
 
@@ -39,7 +40,6 @@ export default function ChatAssessment() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (recognitionRef.current) {
@@ -59,7 +59,6 @@ export default function ChatAssessment() {
   }, []);
 
   const startListening = useCallback(() => {
-    // First stop any existing instance
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
       recognitionRef.current = null;
@@ -113,15 +112,13 @@ export default function ChatAssessment() {
           setMicStatus("❌ Network error. Speech recognition needs internet. Please type your message instead.");
           setIsListening(false);
         } else if (event.error === "aborted") {
-          // Intentional stop, do nothing
+          // Intentional stop
         } else {
           setMicStatus(`⚠️ Error: ${event.error}. Try again or type your message.`);
         }
       };
 
       rec.onend = () => {
-        // If we're still supposed to be listening (user didn't stop), restart
-        // Use ref to avoid stale closure
         if (recognitionRef.current === rec) {
           try {
             rec.start();
@@ -156,61 +153,78 @@ export default function ChatAssessment() {
   async function send() {
     if (!input.trim()) return;
 
-    // Stop listening if active
     stopListening();
 
     const userText = input.trim();
     const userMsg: Msg = { role: "user", text: userText, time: getNow() };
+    const updatedMessages = [...messages, userMsg];
 
-    setMessages(m => [...m, userMsg]);
+    setMessages(updatedMessages);
     setInput("");
     setTyping(true);
 
     const nextTurn = turn + 1;
     setTurn(nextTurn);
 
-    // Simulate short AI thinking delay
-    setTimeout(() => {
-      setTyping(false);
+    // Call server AI chat endpoint
+    const res = await api.post<any>("/ai/assess", {
+      messages: updatedMessages.map(m => ({ role: m.role === "ai" ? "assistant" : "user", text: m.text })),
+      lang: selectedLang
+    });
 
-      // Collect all user text for holistic assessment
-      const allUserTexts = [...messages.filter(m => m.role === "user").map(m => m.text), userText].join(". ");
-      const dynamicAssessment = performAiAssessment(allUserTexts, nextTurn * 10, selectedLang);
-      saveAssessment(dynamicAssessment);
-
-      // Generate contextual AI reply based on content
-      let aiReply = "";
+    setTyping(false);
+    
+    let aiReply = "";
+    let sviVal = 50;
+    let priorityVal: "Critical" | "High" | "Moderate" | "Low" = "Moderate";
+    
+    if (res.ok && res.data) {
+      aiReply = res.data.reply;
+      sviVal = res.data.svi || 50;
+      priorityVal = (res.data.priority || "Moderate") as any;
+    } else {
+      // Fallback local response
       const lower = userText.toLowerCase();
-
-      if (lower.includes("threat") || lower.includes("fear") || lower.includes("unsafe") || lower.includes("kill") || lower.includes("attack") || lower.includes("dhamki") || lower.includes("dar")) {
-        aiReply = `I understand how distressing this is. Your safety is our top priority.\n\nBased on what you've shared, I've assessed your vulnerability level as ${dynamicAssessment.priority} (SVI: ${dynamicAssessment.svi}/100).\n\nAre you currently in a safe place, or do you need urgent protective assistance?`;
-      } else if (lower.includes("police") || lower.includes("court") || lower.includes("fir") || lower.includes("lawyer") || lower.includes("kanoon")) {
-        aiReply = `Thank you for explaining the legal challenges you're facing. Navigating legal processes under duress is difficult.\n\nI've noted your case as ${dynamicAssessment.priority} priority (SVI: ${dynamicAssessment.svi}/100). RAAHAT can connect you with authorized legal aid officers in your district.`;
-      } else if (lower.includes("sad") || lower.includes("cry") || lower.includes("sleep") || lower.includes("alone") || lower.includes("anxious") || lower.includes("depressed") || lower.includes("hopeless")) {
-        aiReply = `I hear you, and I want you to know that your feelings are valid. The emotional burden you're carrying is significant.\n\nYour vulnerability assessment shows ${dynamicAssessment.priority} priority (SVI: ${dynamicAssessment.svi}/100). Counselling and psychological support services are available.`;
-      } else if (lower.includes("caste") || lower.includes("discrimination") || lower.includes("boycott") || lower.includes("dalit") || lower.includes("bhedbhav")) {
-        aiReply = `What you've described is deeply concerning and constitutes a serious violation of your fundamental rights.\n\nYour case has been assessed at ${dynamicAssessment.priority} priority (SVI: ${dynamicAssessment.svi}/100). Legal protection and community support measures are recommended.`;
-      } else if (nextTurn === 1) {
-        aiReply = `Thank you for sharing that. I understand this may be difficult.\n\nBased on your initial description, I've generated a preliminary assessment (SVI: ${dynamicAssessment.svi}/100, ${dynamicAssessment.priority} priority).\n\nCan you tell me — are you currently safe, and is there anyone nearby who can support you?`;
-      } else if (nextTurn === 2) {
-        aiReply = `I understand. Your updated vulnerability assessment is now SVI: ${dynamicAssessment.svi}/100 (${dynamicAssessment.priority} priority).\n\nOn a scale of 1 to 5, how urgent is the help you need right now? This will help me tailor the right support.`;
+      if (lower.includes("threat") || lower.includes("fear") || lower.includes("unsafe") || lower.includes("kill") || lower.includes("attack") || lower.includes("dhamki")) {
+        aiReply = `I understand how distressing this is. Your safety is our top priority. If you are in immediate danger, please call 112 or 14566. Can you tell me — are you currently in a safe place?`;
+        sviVal = 85;
+        priorityVal = "Critical";
+      } else if (lower.includes("police") || lower.includes("court") || lower.includes("fir") || lower.includes("lawyer")) {
+        aiReply = `Thank you for explaining the legal challenges you're facing. RAAHAT can connect you with authorized legal aid officers (DLSA) in your district. Shall I arrange this?`;
+        sviVal = 68;
+        priorityVal = "High";
       } else {
-        aiReply = `Thank you for sharing all of this. I have now completed a comprehensive vulnerability assessment based on everything you've told me.\n\n📊 Your SVI Score: ${dynamicAssessment.svi}/100\n🔴 Priority: ${dynamicAssessment.priority}\n\nI'm now generating your detailed recommendations and case summary. You'll be redirected shortly.`;
+        aiReply = `Thank you for sharing that. I am here to help you get the support you need. Tell me a bit more about how this has affected you and if you have any family members with you.`;
+        sviVal = 48;
+        priorityVal = "Moderate";
       }
+    }
 
-      setMessages(m => [...m, {
-        role: "ai",
-        text: aiReply,
-        time: getNow(),
-      }]);
+    // Save final holistic assessment
+    const allUserTexts = updatedMessages.filter(m => m.role === "user").map(m => m.text).join(". ");
+    const dynamicAssessment = performAiAssessment(allUserTexts, nextTurn * 10, selectedLang);
+    
+    if (res.ok && res.data) {
+      dynamicAssessment.svi = sviVal;
+      dynamicAssessment.priority = priorityVal;
+      dynamicAssessment.priorityLabel = (priorityVal + " PRIORITY").toUpperCase() as any;
+      dynamicAssessment.summary = res.data.summary || dynamicAssessment.summary;
+    }
+    
+    saveAssessment(dynamicAssessment);
 
-      // Navigate to results after enough conversation or urgent content
-      if (nextTurn >= 3 || lower.includes("emergency") || lower.includes("unsafe") || lower.includes("immediate")) {
-        setTimeout(() => {
-          nav("/assessment-result");
-        }, 2500);
-      }
-    }, 1200);
+    setMessages(m => [...m, {
+      role: "ai",
+      text: aiReply,
+      time: getNow(),
+    }]);
+
+    // Redirect user to assessment result page once conversation is complete
+    if (nextTurn >= 3 || userText.toLowerCase().includes("emergency") || userText.toLowerCase().includes("unsafe")) {
+      setTimeout(() => {
+        nav("/assessment-result");
+      }, 2500);
+    }
   }
 
   return (
@@ -239,7 +253,7 @@ export default function ChatAssessment() {
                     setTimeout(() => startListening(), 200);
                   }
                 }}
-                className="text-xs font-medium text-navy-900 bg-transparent border border-slate-200 rounded px-2 py-1 outline-none"
+                className="text-xs font-medium text-navy-900 bg-transparent border border-slate-200 rounded px-2 py-1 outline-none cursor-pointer"
               >
                 {["English", "हिंदी", "मराठी"].map(l => <option key={l}>{l}</option>)}
               </select>
@@ -294,7 +308,7 @@ export default function ChatAssessment() {
           <div className="flex items-center gap-2">
             <button
               onClick={toggleSpeechToText}
-              className={`p-2.5 rounded-full border transition-all ${
+              className={`p-2.5 rounded-full border transition-all cursor-pointer ${
                 isListening
                   ? "bg-red-500 text-white border-red-600 shadow-md"
                   : "text-slate-500 hover:text-navy-900 border-slate-200 hover:border-navy-400 hover:bg-navy-50"
@@ -313,7 +327,7 @@ export default function ChatAssessment() {
             <button
               onClick={send}
               disabled={!input.trim()}
-              className="w-10 h-10 bg-navy-900 text-white rounded flex items-center justify-center hover:bg-navy-800 disabled:opacity-40 transition-all"
+              className="w-10 h-10 bg-navy-900 text-white rounded flex items-center justify-center hover:bg-navy-800 disabled:opacity-40 transition-all cursor-pointer"
             >
               <Send size={16} />
             </button>

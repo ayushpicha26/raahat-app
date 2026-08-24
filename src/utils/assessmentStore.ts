@@ -1,4 +1,5 @@
 import { AssessmentResultData, performAiAssessment } from "./aiEngine";
+import { api, getToken } from "./api";
 
 const STORAGE_KEY = "raahat_latest_assessment";
 
@@ -23,8 +24,27 @@ export function getStoredAssessment(): AssessmentResultData {
 export function saveAssessment(assessment: AssessmentResultData): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(assessment));
+    
     // Also dispatch custom event so open tabs or active components can react
     window.dispatchEvent(new CustomEvent("raahat:assessment-updated", { detail: assessment }));
+
+    // If authenticated, also save to real backend database asynchronously
+    if (getToken()) {
+      api.post<{ ok: boolean; caseId: string }>("/cases", assessment)
+        .then(res => {
+          if (res.ok && res.data) {
+            console.log("Assessment synced to server with case ID:", res.data.caseId);
+            const updated = { ...assessment, id: res.data.caseId };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            window.dispatchEvent(new CustomEvent("raahat:assessment-updated", { detail: updated }));
+          } else {
+            console.warn("Failed to sync assessment to server:", res.error);
+          }
+        })
+        .catch(err => {
+          console.error("Error syncing assessment to server:", err);
+        });
+    }
   } catch (e) {
     console.error("Failed to save assessment", e);
   }

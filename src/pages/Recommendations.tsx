@@ -4,10 +4,12 @@ import UserLayout from "../components/UserLayout";
 import { MessageCircle, Gavel, HeartPulse, Shield, ShieldCheck, Home, AlertCircle, CheckCircle, ChevronRight, Sparkles } from "lucide-react";
 import { getStoredAssessment } from "../utils/assessmentStore";
 import { AssessmentResultData, SupportRecommendation } from "../utils/aiEngine";
+import { api } from "../utils/api";
 
 export default function Recommendations() {
   const nav = useNavigate();
   const [requested, setRequested] = useState<Set<number>>(new Set());
+  const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
   const [assessment, setAssessment] = useState<AssessmentResultData | null>(null);
 
   useEffect(() => {
@@ -36,6 +38,21 @@ export default function Recommendations() {
     }
   }
 
+  async function handleRequestSupport(index: number, title: string) {
+    if (!assessment) return;
+    setLoadingIndex(index);
+    const res = await api.post<{ ok: boolean }>("/cases/support-request", {
+      caseId: assessment.id,
+      service: title
+    });
+    setLoadingIndex(null);
+    if (res.ok) {
+      setRequested(prev => new Set([...prev, index]));
+    } else {
+      alert(res.error || "Failed to submit request.");
+    }
+  }
+
   return (
     <UserLayout>
       <div className="max-w-3xl mx-auto px-6 py-8">
@@ -51,7 +68,7 @@ export default function Recommendations() {
 
         {/* Emergency notice */}
         {assessment.priority === "Critical" && (
-          <div className="bg-critical-50 border border-critical-200 rounded p-4 mb-6 flex items-start gap-3 shadow-xs">
+          <div className="bg-critical-50 border border-critical-200 rounded p-4 mb-6 flex items-start gap-3 shadow-xs animate-pulse">
             <AlertCircle size={18} className="text-critical-700 mt-0.5 shrink-0" />
             <div>
               <div className="font-bold text-critical-700 text-sm mb-0.5">Urgent Protection Protocol Active</div>
@@ -81,14 +98,15 @@ export default function Recommendations() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => setRequested(prev => new Set([...prev, i]))}
+                      onClick={() => handleRequestSupport(i, r.title)}
+                      disabled={loadingIndex !== null}
                       className={`flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg transition-all ${
                         r.urgent
                           ? "bg-critical-700 text-white hover:bg-critical-800 shadow-xs"
                           : "border border-navy-300 text-navy-800 hover:bg-navy-50"
-                      }`}
+                      } disabled:opacity-50`}
                     >
-                      {r.cta} <ChevronRight size={13} />
+                      {loadingIndex === i ? "Submitting..." : r.cta} <ChevronRight size={13} />
                     </button>
                   )}
                 </div>

@@ -1,36 +1,139 @@
 import { useState, useEffect } from "react";
 import UserLayout from "../components/UserLayout";
-import { CheckCircle, Clock, Circle, Sparkles } from "lucide-react";
+import { CheckCircle, Clock, Circle, Sparkles, AlertCircle } from "lucide-react";
 import { StatusBadge } from "../components/Badge";
-import { getStoredAssessment } from "../utils/assessmentStore";
-import { AssessmentResultData } from "../utils/aiEngine";
+import { api, getUser } from "../utils/api";
+
+interface CaseDetails {
+  case_id: string;
+  svi: number;
+  priority: "Critical" | "High" | "Moderate" | "Low";
+  priority_label: string;
+  status: string;
+  assigned_officer: string;
+  assigned_service: string;
+  language_detected: string;
+  audio_duration_seconds: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function MyCase() {
-  const [assessment, setAssessment] = useState<AssessmentResultData | null>(null);
+  const [caseInfo, setCaseInfo] = useState<CaseDetails | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setAssessment(getStoredAssessment());
+    const user = getUser();
+    if (user && user.caseId) {
+      api.get<CaseDetails>(`/cases/${user.caseId}`)
+        .then(res => {
+          setLoading(false);
+          if (res.ok && res.data) {
+            setCaseInfo(res.data);
+          }
+        })
+        .catch(err => {
+          console.error("Error loading case info:", err);
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  const caseId = assessment?.id || "RAH-2026-00124";
-  const svi = assessment?.svi || 78;
-  const priority = assessment?.priority || "High";
-  const dateStr = assessment?.date || "22 Aug 2026, 10:51 AM";
+  if (loading) {
+    return (
+      <UserLayout>
+        <div className="max-w-3xl mx-auto px-6 py-20 text-center text-slate-400">
+          Loading case information...
+        </div>
+      </UserLayout>
+    );
+  }
+
+  if (!caseInfo) {
+    return (
+      <UserLayout>
+        <div className="max-w-3xl mx-auto px-6 py-20 text-center">
+          <AlertCircle size={32} className="mx-auto mb-2 text-slate-400" />
+          <h2 className="text-lg font-semibold text-navy-900 mb-1">No Active Case Found</h2>
+          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+            Please complete a voice or chat assessment on the dashboard to register a case.
+          </p>
+        </div>
+      </UserLayout>
+    );
+  }
+
+  const caseId = caseInfo.case_id;
+  const svi = caseInfo.svi;
+  const priority = caseInfo.priority;
+  const dateStr = caseInfo.created_at ? new Date(caseInfo.created_at).toLocaleString("en-IN") : "Today";
+
+  // Calculate timeline state dynamically from DB values
+  const isCreated = true;
+  const isVerified = true;
+  const isAssessed = true;
+  const isReviewed = !["Assessment Pending", "Under Review", "Human Review Required"].includes(caseInfo.status);
+  const isAssigned = caseInfo.assigned_officer !== "" || caseInfo.status === "Support Assigned" || isReviewed;
+  const isResolved = ["Resolved", "Closed"].includes(caseInfo.status);
 
   const timeline = [
-    { label: "Case Created & Identity Registered", date: "Today", done: true, desc: `Your case was registered and Case ID ${caseId} assigned.` },
-    { label: "Identity & Demographics Verification", date: "Today", done: true, desc: "Registration and basic demographic credentials verified." },
-    { label: "Live AI Assessment & SVI Scoring", date: dateStr, done: true, desc: `Voice & text analysis completed. SVI: ${svi}/100. Priority: ${priority}.` },
-    { label: "Human Officer Review", date: "Pending Review", done: false, desc: "Case is queued for priority review by the District Social Welfare Officer.", active: true },
-    { label: "Support & Relief Assignment", date: "Pending", done: false, desc: "Counselling, legal assistance, and safety measures assigned upon review." },
-    { label: "Resolution & Follow-up", date: "—", done: false, desc: "Comprehensive case closure and ongoing citizen welfare monitoring." },
+    {
+      label: "Case Created & Identity Registered",
+      date: dateStr,
+      done: isCreated,
+      active: false,
+      desc: `Your case was registered and Case ID ${caseId} assigned.`,
+    },
+    {
+      label: "Identity & Demographics Verification",
+      date: dateStr,
+      done: isVerified,
+      active: false,
+      desc: "Registration and basic demographics credentials verified.",
+    },
+    {
+      label: "Live AI Assessment & SVI Scoring",
+      date: dateStr,
+      done: isAssessed,
+      active: false,
+      desc: `Voice & text analysis completed. SVI: ${svi}/100. Priority: ${priority} (${caseInfo.priority_label}).`,
+    },
+    {
+      label: "Human Officer Review",
+      date: isReviewed ? "Completed" : "In Progress",
+      done: isReviewed,
+      active: !isReviewed,
+      desc: isReviewed
+        ? "Officer review complete. Case forwarded for action."
+        : "Case is queued for priority review by the District Social Welfare Officer.",
+    },
+    {
+      label: "Support & Relief Assignment",
+      date: isAssigned ? "Completed" : "Pending",
+      done: isAssigned,
+      active: isReviewed && !isAssigned,
+      desc: caseInfo.assigned_officer
+        ? `Support assigned: ${caseInfo.assigned_officer} (${caseInfo.assigned_service || "Welfare Support"}).`
+        : "Counselling, legal assistance, and safety measures assigned upon review.",
+    },
+    {
+      label: "Resolution & Follow-up",
+      date: isResolved ? "Resolved" : "—",
+      done: isResolved,
+      active: isAssigned && !isResolved,
+      desc: isResolved
+        ? "Comprehensive case closure and ongoing citizen welfare monitoring."
+        : "Action ongoing. Tracking resolution progress.",
+    },
   ];
 
   const docs = [
     { name: "Caste / Identity Certificate", status: "Uploaded", access: "Restricted (Officer Only)" },
     { name: "Case Registration Form", status: "Issued", access: "Citizen + Officer" },
     { name: "Live AI Assessment Report", status: "Generated", access: "Citizen + Officer" },
-    { name: "Counselling & Support Referral", status: "Pending", access: "Citizen + Support Team" },
+    { name: "Counselling & Support Referral", status: caseInfo.assigned_officer ? "Issued" : "Pending", access: "Citizen + Support Team" },
   ];
 
   return (
@@ -50,9 +153,9 @@ export default function MyCase() {
             { k: "Case ID", v: caseId, mono: true },
             { k: "SVI Score", v: `${svi} / 100`, mono: true },
             { k: "Priority Tier", v: priority },
-            { k: "Status", v: <StatusBadge status="Human Review Required" /> },
+            { k: "Status", v: <StatusBadge status={caseInfo.status} /> },
             { k: "Department", v: "District Social Welfare Division" },
-            { k: "Date Filed", v: dateStr },
+            { k: "Date Filed", v: new Date(caseInfo.created_at).toLocaleDateString("en-IN") },
           ].map(({ k, v, mono }) => (
             <div key={k}>
               <div className="text-xs text-slate-500 mb-0.5">{k}</div>
@@ -70,18 +173,18 @@ export default function MyCase() {
             {timeline.map((t, i) => (
               <div key={i} className="flex gap-4">
                 <div className="flex flex-col items-center">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${t.done ? "bg-safe-700" : (t as any).active ? "bg-navy-900" : "bg-slate-200"}`}>
-                    {t.done ? <CheckCircle size={14} className="text-white" /> : (t as any).active ? <Clock size={14} className="text-white animate-pulse" /> : <Circle size={14} className="text-slate-400" />}
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${t.done ? "bg-safe-700 text-white" : t.active ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
+                    {t.done ? <CheckCircle size={14} /> : t.active ? <Clock size={14} className="animate-pulse" /> : <Circle size={14} />}
                   </div>
                   {i < timeline.length - 1 && <div className={`w-0.5 flex-1 mt-1 mb-1 ${t.done ? "bg-safe-700" : "bg-slate-200"}`} style={{minHeight: "32px"}} />}
                 </div>
                 <div className="pb-4 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`font-bold text-sm ${(t as any).active ? "text-navy-900" : t.done ? "text-slate-700" : "text-slate-400"}`}>{t.label}</span>
-                    {(t as any).active && <span className="text-xs bg-navy-100 text-navy-800 px-2 py-0.5 rounded font-semibold">In Progress</span>}
+                    <span className={`font-bold text-sm ${t.active ? "text-navy-900" : t.done ? "text-slate-700" : "text-slate-400"}`}>{t.label}</span>
+                    {t.active && <span className="text-xs bg-navy-100 text-navy-800 px-2 py-0.5 rounded font-semibold">In Progress</span>}
                   </div>
                   <div className="text-xs text-slate-400 mt-0.5 mb-1 font-mono">{t.date}</div>
-                  <div className={`text-xs sm:text-sm ${t.done || (t as any).active ? "text-slate-600" : "text-slate-400"}`}>{t.desc}</div>
+                  <div className={`text-xs sm:text-sm ${t.done || t.active ? "text-slate-600" : "text-slate-400"}`}>{t.desc}</div>
                 </div>
               </div>
             ))}

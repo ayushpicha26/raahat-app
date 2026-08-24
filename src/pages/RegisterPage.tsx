@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RaahatLogo from "../components/RaahatLogo";
 import { Shield, Upload, CheckCircle, AlertCircle, Eye, EyeOff, Lock, ChevronLeft } from "lucide-react";
+import { api, setToken, setUser } from "../utils/api";
 
 const STATES = ["Maharashtra", "Uttar Pradesh", "Madhya Pradesh", "Rajasthan", "Bihar", "Gujarat", "Karnataka", "Tamil Nadu", "Andhra Pradesh", "West Bengal", "Odisha", "Punjab"];
 const LANGUAGES = ["English", "Hindi", "Marathi", "Bengali", "Tamil", "Telugu", "Kannada", "Gujarati", "Punjabi", "Malayalam", "Odia"];
@@ -12,7 +13,9 @@ export default function RegisterPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [verStatus, setVerStatus] = useState<"none" | "pending" | "verified">("none");
   const [consents, setConsents] = useState({ privacy: false, ai: false, medical: false });
-  const [form, setForm] = useState({ name: "", mobile: "", email: "", dob: "", state: "", district: "", lang: "English", address: "", pwd: "", cpwd: "", category: "" });
+  const [form, setForm] = useState({ name: "", mobile: "", email: "", dob: "", state: "", district: "", lang: "English", address: "", pwd: "", cpwd: "", category: "SC" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const allConsents = consents.privacy && consents.ai && consents.medical;
 
@@ -21,9 +24,48 @@ export default function RegisterPage() {
     setTimeout(() => setVerStatus("verified"), 1500);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    nav("/dashboard");
+    setError("");
+    setLoading(true);
+
+    if (form.pwd !== form.cpwd) {
+      setError("Passwords do not match.");
+      setLoading(false);
+      setStep(1);
+      return;
+    }
+
+    if (form.pwd.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      setLoading(false);
+      setStep(1);
+      return;
+    }
+
+    const payload = {
+      name: form.name.trim(),
+      mobile: form.mobile.trim() || undefined,
+      email: form.email.trim() || undefined,
+      password: form.pwd,
+      dob: form.dob,
+      state: form.state,
+      district: form.district.trim(),
+      category: form.category,
+      language: form.lang,
+      address: form.address.trim(),
+    };
+
+    const res = await api.post<{ token: string; user: any }>("/auth/register", payload);
+    setLoading(false);
+
+    if (res.ok && res.data) {
+      setToken(res.data.token);
+      setUser(res.data.user);
+      nav("/dashboard");
+    } else {
+      setError(res.error || "Registration failed. Please try again.");
+    }
   }
 
   return (
@@ -52,6 +94,13 @@ export default function RegisterPage() {
           </div>
         </div>
 
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded flex items-start gap-2">
+            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
         <div className="bg-white border border-slate-200 rounded shadow-sm">
           <div className="px-8 py-6 border-b border-slate-200">
             <h1 className="text-xl font-bold text-navy-900">Create Your RAAHAT Account</h1>
@@ -59,7 +108,7 @@ export default function RegisterPage() {
           </div>
 
           {step === 1 && (
-            <form className="px-8 py-6 space-y-5" onSubmit={() => setStep(2)}>
+            <form className="px-8 py-6 space-y-5" onSubmit={(e) => { e.preventDefault(); setStep(2); }}>
               <div className="grid md:grid-cols-2 gap-5">
                 <Field label="Full Name *" name="name" value={form.name} onChange={v => setForm({...form, name: v})} placeholder="As per official records" />
                 <Field label="Mobile Number *" name="mobile" value={form.mobile} onChange={v => setForm({...form, mobile: v})} placeholder="+91 XXXXX XXXXX" type="tel" />
@@ -94,7 +143,7 @@ export default function RegisterPage() {
                 <Field label="Confirm Password *" name="cpwd" value={form.cpwd} onChange={v => setForm({...form, cpwd: v})} type="password" placeholder="Re-enter password" />
               </div>
               <div className="pt-2 flex justify-end">
-                <button type="submit" className="px-6 py-2.5 bg-navy-900 text-white font-semibold text-sm rounded hover:bg-navy-800">Next: Eligibility Verification</button>
+                <button type="submit" className="px-6 py-2.5 bg-navy-900 text-white font-semibold text-sm rounded hover:bg-navy-800 transition-all">Next: Eligibility Verification</button>
               </div>
             </form>
           )}
@@ -126,26 +175,26 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-navy-900 mb-1.5">Upload Caste Certificate</label>
-                  <div className="border-2 border-dashed border-slate-300 rounded p-6 text-center cursor-pointer hover:border-navy-400 hover:bg-navy-50" onClick={handleFile}>
+                  <div className="border-2 border-dashed border-slate-300 rounded p-6 text-center cursor-pointer hover:border-navy-400 hover:bg-navy-50 transition-all" onClick={handleFile}>
                     <Upload size={24} className="mx-auto mb-2 text-slate-400" />
                     <p className="text-sm text-slate-600">Click to upload or drag and drop</p>
                     <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG — Max 5 MB</p>
                   </div>
                   {verStatus === "pending" && (
-                    <div className="flex items-center gap-2 mt-2 text-amber-700 text-sm">
+                    <div className="flex items-center gap-2 mt-2 text-amber-700 text-sm animate-pulse">
                       <AlertCircle size={14} /> Verification Pending
                     </div>
                   )}
                   {verStatus === "verified" && (
-                    <div className="flex items-center gap-2 mt-2 text-safe-700 text-sm">
+                    <div className="flex items-center gap-2 mt-2 text-safe-700 text-sm font-semibold">
                       <CheckCircle size={14} /> Document Uploaded — Verification in Progress
                     </div>
                   )}
                 </div>
               </div>
               <div className="flex justify-between mt-6">
-                <button onClick={() => setStep(1)} className="px-5 py-2.5 border border-slate-300 text-slate-600 font-semibold text-sm rounded hover:bg-slate-50">Back</button>
-                <button onClick={() => setStep(3)} className="px-6 py-2.5 bg-navy-900 text-white font-semibold text-sm rounded hover:bg-navy-800">Next: Consent</button>
+                <button onClick={() => setStep(1)} className="px-5 py-2.5 border border-slate-300 text-slate-600 font-semibold text-sm rounded hover:bg-slate-50 transition-all">Back</button>
+                <button onClick={() => setStep(3)} className="px-6 py-2.5 bg-navy-900 text-white font-semibold text-sm rounded hover:bg-navy-800 transition-all">Next: Consent</button>
               </div>
             </div>
           )}
@@ -175,9 +224,9 @@ export default function RegisterPage() {
                 Your data is encrypted and protected under applicable data protection laws. You may withdraw consent at any time.
               </div>
               <div className="flex justify-between mt-6">
-                <button type="button" onClick={() => setStep(2)} className="px-5 py-2.5 border border-slate-300 text-slate-600 font-semibold text-sm rounded hover:bg-slate-50">Back</button>
-                <button type="submit" disabled={!allConsents} className={`px-6 py-2.5 font-semibold text-sm rounded ${allConsents ? "bg-navy-900 text-white hover:bg-navy-800" : "bg-slate-200 text-slate-400 cursor-not-allowed"}`}>
-                  Create Account
+                <button type="button" onClick={() => setStep(2)} className="px-5 py-2.5 border border-slate-300 text-slate-600 font-semibold text-sm rounded hover:bg-slate-50 transition-all">Back</button>
+                <button type="submit" disabled={!allConsents || loading} className={`px-6 py-2.5 font-semibold text-sm rounded transition-all ${allConsents && !loading ? "bg-navy-900 text-white hover:bg-navy-800" : "bg-slate-200 text-slate-400 cursor-not-allowed"}`}>
+                  {loading ? "Creating Account..." : "Create Account"}
                 </button>
               </div>
             </form>
@@ -199,8 +248,8 @@ function Field({ label, name, value, onChange, placeholder = "", type = "text" }
   return (
     <div>
       <label className="block text-sm font-semibold text-navy-900 mb-1.5">{label}</label>
-      <input type={type} name={name} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-600 placeholder:text-slate-400" />
+      <input type={type} name={name} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required
+        className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-600 focus:ring-1 focus:ring-navy-200 transition-all placeholder:text-slate-400" />
     </div>
   );
 }

@@ -4,32 +4,70 @@ import UserLayout from "../components/UserLayout";
 import { Mic, MessageSquare, AlertCircle, Clock, Shield, ChevronRight, CheckCircle, Sparkles } from "lucide-react";
 import { StatusBadge } from "../components/Badge";
 import { getStoredAssessment } from "../utils/assessmentStore";
-import { AssessmentResultData } from "../utils/aiEngine";
+import { api, getUser } from "../utils/api";
+
+interface CaseData {
+  case_id: string;
+  svi: number;
+  priority: "Critical" | "High" | "Moderate" | "Low";
+  priority_label: string;
+  status: string;
+  assigned_officer: string;
+  assigned_service: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function UserDashboard() {
   const nav = useNavigate();
-  const [assessment, setAssessment] = useState<AssessmentResultData | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [activeCase, setActiveCase] = useState<CaseData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setAssessment(getStoredAssessment());
+    const user = getUser();
+    setCurrentUser(user);
+
+    // Fetch user's cases from API
+    if (user) {
+      api.get<{ cases: CaseData[] }>("/cases?limit=1")
+        .then(res => {
+          setLoading(false);
+          if (res.ok && res.data && res.data.cases.length > 0) {
+            setActiveCase(res.data.cases[0]);
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching cases:", err);
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  const currentCaseId = assessment?.id || "RAH-2026-00124";
-  const priorityLabel = assessment?.priorityLabel || "HIGH PRIORITY";
-  const priorityColor = assessment?.priority === "Critical"
+  const hasCase = activeCase !== null;
+
+  const currentCaseId = activeCase?.case_id || "No Active Case";
+  const priorityLabel = activeCase?.priority_label || "PENDING ASSESSMENT";
+  const priorityColor = activeCase?.priority === "Critical"
     ? "text-critical-700 font-bold"
-    : assessment?.priority === "High"
+    : activeCase?.priority === "High"
     ? "text-high-700 font-bold"
-    : assessment?.priority === "Moderate"
+    : activeCase?.priority === "Moderate"
     ? "text-amber-700 font-bold"
-    : "text-safe-700 font-bold";
+    : activeCase?.priority === "Low"
+    ? "text-safe-700 font-bold"
+    : "text-slate-400";
 
   return (
     <UserLayout>
       <div className="max-w-4xl mx-auto px-6 py-8">
         {/* Welcome */}
         <div className="bg-navy-950 text-white rounded-lg p-6 mb-6 shadow-sm">
-          <h1 className="text-xl font-bold mb-1">Welcome. You are not alone.</h1>
+          <h1 className="text-xl font-bold mb-1">
+            Welcome, {currentUser?.name || "Citizen"}. You are not alone.
+          </h1>
           <p className="text-navy-300 text-sm leading-relaxed">
             Tell us what happened in the way that feels most comfortable to you. RAAHAT is here to listen, assess your situation in real time, and connect you with the right support.
           </p>
@@ -59,24 +97,39 @@ export default function UserDashboard() {
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h2 className="font-bold text-navy-900 flex items-center gap-2">
               Active Case Status
-              {assessment && (
+              {hasCase && (
                 <span className="text-xs bg-navy-50 text-navy-800 font-semibold px-2 py-0.5 rounded flex items-center gap-1">
-                  <Sparkles size={11} /> SVI: {assessment.svi}/100
+                  <Sparkles size={11} /> SVI: {activeCase?.svi}/100
                 </span>
               )}
             </h2>
-            <button onClick={() => nav("/my-case")} className="text-sm text-navy-700 hover:underline flex items-center gap-1 font-medium">
-              View Full Case <ChevronRight size={14} />
-            </button>
+            {hasCase && (
+              <button onClick={() => nav("/my-case")} className="text-sm text-navy-700 hover:underline flex items-center gap-1 font-medium">
+                View Full Case <ChevronRight size={14} />
+              </button>
+            )}
           </div>
-          <div className="p-5 grid md:grid-cols-2 gap-4">
-            <InfoRow label="Case ID" value={currentCaseId} mono />
-            <InfoRow label="Current Status" value={<StatusBadge status="Human Review Required" />} />
-            <InfoRow label="Assessment Status" value={<StatusBadge status="Complete" />} />
-            <InfoRow label="Priority Tier" value={<span className={`text-sm ${priorityColor}`}>{priorityLabel}</span>} />
-            <InfoRow label="Assigned Support" value={assessment?.recommendations[0]?.title || "Counselling & Safety Review"} />
-            <InfoRow label="Last Evaluated" value={assessment?.date || "Today"} />
-          </div>
+          
+          {loading ? (
+            <div className="p-10 text-center text-slate-400">Loading your case status...</div>
+          ) : hasCase ? (
+            <div className="p-5 grid md:grid-cols-2 gap-4">
+              <InfoRow label="Case ID" value={currentCaseId} mono />
+              <InfoRow label="Current Status" value={<StatusBadge status={activeCase?.status || "Under Review"} />} />
+              <InfoRow label="Assessment Status" value={<StatusBadge status="Complete" />} />
+              <InfoRow label="Priority Tier" value={<span className={`text-sm ${priorityColor}`}>{priorityLabel}</span>} />
+              <InfoRow label="Assigned Support" value={activeCase?.assigned_officer ? `${activeCase.assigned_officer} (${activeCase.assigned_service})` : (activeCase?.assigned_service || "Pending Assignment")} />
+              <InfoRow label="Last Evaluated" value={activeCase?.updated_at ? new Date(activeCase.updated_at).toLocaleString("en-IN") : "Today"} />
+            </div>
+          ) : (
+            <div className="p-8 text-center text-slate-500">
+              <AlertCircle size={24} className="mx-auto mb-2 text-slate-400" />
+              <p className="text-sm font-semibold mb-1">No Active Cases Found</p>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Complete a Voice or Chat Support assessment above to register your case and receive recommendations.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* AI Disclaimer */}

@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import UserLayout from "../components/UserLayout";
 import { Mic, Square, Pause, Trash2, Send, AlertCircle, Volume2, Globe, Edit3, Sparkles, Check, Play } from "lucide-react";
 import { performAiAssessment } from "../utils/aiEngine";
 import { saveAssessment } from "../utils/assessmentStore";
+import { api } from "../utils/api";
 
 const STEPS = [
   "Speech transcription & normalization",
@@ -58,10 +59,8 @@ export default function VoiceAssessment() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number | null>(null);
-  // Use a ref to track listening state so callbacks have fresh value
   const listeningRef = useRef(false);
 
-  // Timer
   useEffect(() => {
     let t: ReturnType<typeof setInterval>;
     if (state === "listening") {
@@ -70,12 +69,10 @@ export default function VoiceAssessment() {
     return () => clearInterval(t);
   }, [state]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopAllCapture();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function stopAllCapture() {
@@ -106,13 +103,11 @@ export default function VoiceAssessment() {
     setMicStatus("");
     listeningRef.current = true;
 
-    // ── 1. Speech Recognition ──
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
       setMicStatus("⚠️ Speech recognition not supported. Use the text editor or sample prompts below.");
     } else {
       try {
-        // Stop any existing
         if (recognitionRef.current) {
           try { recognitionRef.current.stop(); } catch {}
         }
@@ -162,7 +157,6 @@ export default function VoiceAssessment() {
         };
 
         rec.onend = () => {
-          // Auto-restart only if we're still supposed to be listening
           if (listeningRef.current && recognitionRef.current === rec) {
             try {
               rec.start();
@@ -180,7 +174,6 @@ export default function VoiceAssessment() {
       }
     }
 
-    // ── 2. Audio Visualizer ──
     if (navigator.mediaDevices?.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
@@ -215,7 +208,6 @@ export default function VoiceAssessment() {
           }
         })
         .catch(() => {
-          // Fallback pulsing animation if mic hardware fails but speech API works
           const pulse = setInterval(() => {
             if (!listeningRef.current) { clearInterval(pulse); return; }
             setMicVolume(new Array(16).fill(0).map(() => Math.floor(Math.random() * 26) + 10));
@@ -250,7 +242,7 @@ export default function VoiceAssessment() {
     setMicStatus("");
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const finalContent = (transcript + (interimText ? " " + interimText : "")).trim();
     if (!finalContent) {
       setMicStatus("⚠️ No content to assess. Speak or type something first.");
@@ -261,7 +253,23 @@ export default function VoiceAssessment() {
     setState("processing");
 
     const langObj = LANGUAGES.find(l => l.code === selectedLang);
-    const result = performAiAssessment(finalContent, seconds || 18, langObj?.name || "English");
+    const durationVal = seconds || 18;
+    const langName = langObj?.name || "English";
+
+    let result;
+    const res = await api.post<any>("/ai/assess", {
+      text: finalContent,
+      duration: durationVal,
+      lang: langName
+    });
+
+    if (res.ok && res.data) {
+      result = res.data;
+    } else {
+      console.warn("Backend AI assessment failed, falling back to local parser:", res.error);
+      result = performAiAssessment(finalContent, durationVal, langName);
+    }
+
     saveAssessment(result);
 
     let step = 0;
@@ -325,7 +333,6 @@ export default function VoiceAssessment() {
             </div>
           ) : (
             <>
-              {/* Mic button */}
               <div className="flex flex-col items-center">
                 <div className="relative inline-flex items-center justify-center my-2">
                   {state === "listening" && (
@@ -350,7 +357,6 @@ export default function VoiceAssessment() {
                   </button>
                 </div>
 
-                {/* Volume bars */}
                 {state === "listening" && (
                   <div className="flex items-center justify-center gap-1.5 h-12 my-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full">
                     <Volume2 size={16} className="text-red-600 animate-pulse mr-1" />
@@ -375,7 +381,6 @@ export default function VoiceAssessment() {
                   )}
                 </div>
 
-                {/* Status message */}
                 {micStatus && (
                   <div className={`mt-4 p-3 rounded text-xs max-w-md mx-auto text-left flex items-start gap-2 ${
                     micStatus.startsWith("❌") ? "bg-red-50 border border-red-200 text-red-700"
@@ -388,22 +393,21 @@ export default function VoiceAssessment() {
                   </div>
                 )}
 
-                {/* Action Buttons */}
                 <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
                   {state === "ready" ? (
-                    <button onClick={handleStart} className="flex items-center gap-2 text-sm font-semibold text-white bg-navy-900 hover:bg-navy-800 px-6 py-2.5 rounded shadow-sm">
+                    <button onClick={handleStart} className="flex items-center gap-2 text-sm font-semibold text-white bg-navy-900 hover:bg-navy-800 px-6 py-2.5 rounded shadow-sm transition-all cursor-pointer">
                       <Mic size={16} /> Start Recording
                     </button>
                   ) : (
                     <>
-                      <button onClick={handleReset} className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-red-600 border border-slate-200 px-3.5 py-2 rounded font-medium">
+                      <button onClick={handleReset} className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-red-600 border border-slate-200 px-3.5 py-2 rounded font-medium transition-all cursor-pointer">
                         <Trash2 size={15} /> Reset
                       </button>
-                      <button onClick={() => state === "listening" ? handlePause() : handleResume()} className="flex items-center gap-1.5 text-sm text-slate-700 border border-slate-200 px-3.5 py-2 rounded font-medium">
+                      <button onClick={() => state === "listening" ? handlePause() : handleResume()} className="flex items-center gap-1.5 text-sm text-slate-700 border border-slate-200 px-3.5 py-2 rounded font-medium transition-all cursor-pointer">
                         {state === "listening" ? <><Pause size={15} /> Pause</> : <><Play size={15} /> Resume</>}
                       </button>
                       {(transcript || interimText) && (
-                        <button onClick={handleSubmit} className="flex items-center gap-2 text-sm font-semibold text-white bg-navy-900 hover:bg-navy-800 px-5 py-2 rounded shadow-sm">
+                        <button onClick={handleSubmit} className="flex items-center gap-2 text-sm font-semibold text-white bg-navy-900 hover:bg-navy-800 px-5 py-2 rounded shadow-sm transition-all cursor-pointer">
                           <Send size={15} /> Submit for Assessment
                         </button>
                       )}
@@ -425,7 +429,7 @@ export default function VoiceAssessment() {
                   {state === "listening" ? "Live Transcription" : "Transcribed Text"}
                 </span>
               </div>
-              <button onClick={() => setIsEditing(!isEditing)} className="text-xs text-navy-700 hover:text-navy-900 font-semibold flex items-center gap-1 hover:underline">
+              <button onClick={() => setIsEditing(!isEditing)} className="text-xs text-navy-700 hover:text-navy-900 font-semibold flex items-center gap-1 hover:underline cursor-pointer">
                 <Edit3 size={13} /> {isEditing ? "Done" : "Edit / Type"}
               </button>
             </div>
@@ -440,7 +444,7 @@ export default function VoiceAssessment() {
                   className="w-full text-sm p-3 border border-navy-300 rounded focus:outline-none focus:ring-1 focus:ring-navy-600 leading-relaxed text-slate-800"
                 />
                 <div className="flex justify-end">
-                  <button onClick={() => setIsEditing(false)} className="text-xs px-3 py-1 bg-navy-900 text-white rounded font-medium">
+                  <button onClick={() => setIsEditing(false)} className="text-xs px-3 py-1 bg-navy-900 text-white rounded font-medium cursor-pointer">
                     Done Editing
                   </button>
                 </div>
@@ -483,7 +487,7 @@ export default function VoiceAssessment() {
                 <button
                   key={idx}
                   onClick={() => { setTranscript(sp.text); if (state === "ready") setSeconds(15); }}
-                  className="text-left p-3 bg-white border border-slate-200 hover:border-navy-400 rounded transition-all group"
+                  className="text-left p-3 bg-white border border-slate-200 hover:border-navy-400 rounded transition-all group cursor-pointer"
                 >
                   <div className="text-xs font-bold text-navy-900 mb-1 flex items-center justify-between">
                     <span>{sp.label}</span>
@@ -496,10 +500,9 @@ export default function VoiceAssessment() {
           </div>
         )}
 
-        {/* Submit button when text exists but user hasn't started recording */}
         {state === "ready" && transcript && (
           <div className="mb-5 flex justify-center">
-            <button onClick={handleSubmit} className="flex items-center gap-2 text-sm font-semibold text-white bg-navy-900 hover:bg-navy-800 px-6 py-2.5 rounded shadow-sm">
+            <button onClick={handleSubmit} className="flex items-center gap-2 text-sm font-semibold text-white bg-navy-900 hover:bg-navy-800 px-6 py-2.5 rounded shadow-sm transition-all cursor-pointer">
               <Send size={16} /> Submit Text for Assessment
             </button>
           </div>
