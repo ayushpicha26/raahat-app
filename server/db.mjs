@@ -30,6 +30,8 @@ export function getDB() {
       category TEXT DEFAULT '',
       language TEXT DEFAULT 'English',
       case_id TEXT,
+      latitude REAL,
+      longitude REAL,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -68,8 +70,24 @@ export function getDB() {
       ai_mode TEXT DEFAULT 'local',
       district TEXT DEFAULT '',
       state TEXT DEFAULT 'Maharashtra',
+      latitude REAL,
+      longitude REAL,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS help_centers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('shelter','police','legal','ngo','hospital','helpline')),
+      latitude REAL NOT NULL,
+      longitude REAL NOT NULL,
+      address TEXT DEFAULT '',
+      phone TEXT DEFAULT '',
+      district TEXT DEFAULT '',
+      state TEXT DEFAULT 'Maharashtra',
+      timings TEXT DEFAULT '24/7',
+      services TEXT DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS assessment_factors (
@@ -121,12 +139,19 @@ export function getDB() {
     CREATE INDEX IF NOT EXISTS idx_indicators_case ON assessment_indicators(case_id);
     CREATE INDEX IF NOT EXISTS idx_recommendations_case ON recommendations(case_id);
     CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+    CREATE INDEX IF NOT EXISTS idx_help_centers_type ON help_centers(type);
   `);
 
   // ── Seed if empty ──
   const userCount = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
   if (userCount === 0) {
     seedDatabase(db);
+  }
+
+  // ── Seed help centers if empty ──
+  const hcCount = db.prepare('SELECT COUNT(*) as c FROM help_centers').get().c;
+  if (hcCount === 0) {
+    seedHelpCenters(db);
   }
 
   return db;
@@ -242,6 +267,59 @@ function seedDatabase(db) {
   db.prepare(`INSERT INTO audit_log (action, actor_type, actor_id, details) VALUES (?, ?, ?, ?)`).run('DATABASE_SEEDED', 'system', 0, 'Initial seed with 12 users, 2 admins, 12 cases');
 
   console.log('✅ Database seeded with demo data.');
+}
+
+function seedHelpCenters(db) {
+  const insert = db.prepare(`
+    INSERT INTO help_centers (name, type, latitude, longitude, address, phone, district, state, timings, services)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const centers = [
+    // One-Stop Centres (Sakhi) — Women's Shelters
+    ['Sakhi One Stop Centre, Pune', 'shelter', 18.5204, 73.8567, 'Sassoon Hospital Campus, Pune 411001', '020-26128282', 'Pune', 'Maharashtra', '24/7', 'Shelter, Medical, Legal, Counselling'],
+    ['Sakhi One Stop Centre, Nagpur', 'shelter', 21.1458, 79.0882, 'Government Medical College Campus, Nagpur 440003', '0712-2740505', 'Nagpur', 'Maharashtra', '24/7', 'Shelter, Medical, Legal, Counselling'],
+    ['Sakhi One Stop Centre, Mumbai', 'shelter', 19.0176, 72.8562, 'KEM Hospital Campus, Parel, Mumbai 400012', '022-24107000', 'Mumbai', 'Maharashtra', '24/7', 'Shelter, Medical, Legal, Counselling'],
+    ['Sakhi One Stop Centre, Nashik', 'shelter', 20.0063, 73.7810, 'Civil Hospital Campus, Nashik 422002', '0253-2508585', 'Nashik', 'Maharashtra', '24/7', 'Shelter, Medical, Legal, Counselling'],
+    ['Ujjawala Shelter Home, Kolhapur', 'shelter', 16.7050, 74.2433, 'Shivaji Nagar, Kolhapur 416005', '0231-2651234', 'Kolhapur', 'Maharashtra', '24/7', 'Shelter, Rehabilitation, Counselling'],
+    ['Swadhar Greh Shelter, Aurangabad', 'shelter', 19.8762, 75.3433, 'CIDCO, Aurangabad 431003', '0240-2481234', 'Chhatrapati Sambhajinagar', 'Maharashtra', '24/7', 'Shelter, Skill Training, Counselling'],
+
+    // Police Women Cells
+    ['Women Protection Cell, Pune', 'police', 18.5308, 73.8474, 'Pune Police Commissioner Office, Shivajinagar 411004', '020-26122880', 'Pune', 'Maharashtra', '24/7', 'FIR, Protection Orders, Rescue'],
+    ['Women Protection Cell, Mumbai', 'police', 19.0760, 72.8777, 'DN Nagar Police Station, Andheri W, Mumbai 400053', '022-26362526', 'Mumbai', 'Maharashtra', '24/7', 'FIR, Protection Orders, Rescue'],
+    ['Women Protection Cell, Nagpur', 'police', 21.1500, 79.0800, 'CP Office, Civil Lines, Nagpur 440001', '0712-2565022', 'Nagpur', 'Maharashtra', '24/7', 'FIR, Protection Orders, Rescue'],
+    ['SC/ST Atrocity Cell, Pune', 'police', 18.5158, 73.8553, 'Special IG Office, Shivajinagar, Pune 411005', '020-26123344', 'Pune', 'Maharashtra', 'Mon-Sat 10AM-6PM', 'FIR under PoA Act, Investigation'],
+    ['SC/ST Atrocity Cell, Nagpur', 'police', 21.1530, 79.0850, 'Range IG Office, Civil Lines, Nagpur 440001', '0712-2562233', 'Nagpur', 'Maharashtra', 'Mon-Sat 10AM-6PM', 'FIR under PoA Act, Investigation'],
+    ['Cyber Crime Cell, Mumbai', 'police', 19.0890, 72.8680, 'BKC Police Complex, Bandra E, Mumbai 400051', '022-22641261', 'Mumbai', 'Maharashtra', 'Mon-Sat 10AM-6PM', 'Cyber Crime FIR, Digital Evidence'],
+
+    // District Legal Services Authority
+    ['DLSA Pune', 'legal', 18.5290, 73.8750, 'District Court Complex, Shivajinagar, Pune 411004', '020-25501900', 'Pune', 'Maharashtra', 'Mon-Sat 10AM-5PM', 'Free Legal Aid, Lok Adalat, Mediation'],
+    ['DLSA Nagpur', 'legal', 21.1480, 79.0830, 'District Court Complex, Civil Lines, Nagpur 440001', '0712-2564911', 'Nagpur', 'Maharashtra', 'Mon-Sat 10AM-5PM', 'Free Legal Aid, Lok Adalat, Mediation'],
+    ['DLSA Mumbai', 'legal', 18.9488, 72.8340, 'City Civil Court, Fort, Mumbai 400001', '022-22620662', 'Mumbai', 'Maharashtra', 'Mon-Sat 10AM-5PM', 'Free Legal Aid, Lok Adalat, Mediation'],
+    ['DLSA Nashik', 'legal', 20.0000, 73.7900, 'District Court, Trimbak Road, Nashik 422002', '0253-2314411', 'Nashik', 'Maharashtra', 'Mon-Sat 10AM-5PM', 'Free Legal Aid, Lok Adalat'],
+    ['DLSA Solapur', 'legal', 17.6599, 75.9064, 'District Court Complex, Solapur 413003', '0217-2315500', 'Solapur', 'Maharashtra', 'Mon-Sat 10AM-5PM', 'Free Legal Aid, Lok Adalat'],
+    ['DLSA Amravati', 'legal', 20.9320, 77.7523, 'District Court Complex, Amravati 444601', '0721-2662233', 'Amravati', 'Maharashtra', 'Mon-Sat 10AM-5PM', 'Free Legal Aid, Lok Adalat'],
+
+    // NGOs
+    ['ICRW India (Women Rights)', 'ngo', 19.1136, 72.8697, 'Andheri East, Mumbai 400059', '022-26827091', 'Mumbai', 'Maharashtra', 'Mon-Fri 10AM-6PM', 'Counselling, Legal Aid, Advocacy'],
+    ['Stree Mukti Sanghatana', 'ngo', 19.0380, 72.8400, 'Dadar West, Mumbai 400028', '022-24221598', 'Mumbai', 'Maharashtra', 'Mon-Sat 10AM-6PM', 'Women Empowerment, Counselling'],
+    ['Majlis Legal Centre', 'ngo', 18.9698, 72.8310, 'Fort, Mumbai 400001', '022-22010044', 'Mumbai', 'Maharashtra', 'Mon-Fri 10AM-5PM', 'Free Legal Aid for Women'],
+    ['Lokshahi Hakk Sanghatana', 'ngo', 21.1400, 79.0700, 'Sitabuldi, Nagpur 440012', '0712-2723456', 'Nagpur', 'Maharashtra', 'Mon-Sat 10AM-6PM', 'Dalit Rights, Legal Aid'],
+    ['Rashtriya Seva Dal (Women Wing)', 'ngo', 18.5100, 73.8600, 'Deccan Gymkhana, Pune 411004', '020-25675432', 'Pune', 'Maharashtra', 'Mon-Sat 10AM-5PM', 'Women Welfare, Counselling'],
+
+    // Government Hospitals with Victim Support
+    ['Sassoon General Hospital', 'hospital', 18.5178, 73.8633, 'Near Pune Railway Station, Pune 411001', '020-26128282', 'Pune', 'Maharashtra', '24/7', 'Medical, Forensic, Victim Support'],
+    ['Government Medical College & Hospital, Nagpur', 'hospital', 21.1435, 79.0905, 'Hanuman Nagar, Nagpur 440003', '0712-2748485', 'Nagpur', 'Maharashtra', '24/7', 'Medical, Forensic, Victim Support'],
+    ['KEM Hospital', 'hospital', 19.0000, 72.8420, 'Acharya Donde Marg, Parel, Mumbai 400012', '022-24107000', 'Mumbai', 'Maharashtra', '24/7', 'Medical, Forensic, Victim Support'],
+    ['Civil Hospital Nashik', 'hospital', 20.0063, 73.7812, 'Old Agra Road, Nashik 422002', '0253-2508585', 'Nashik', 'Maharashtra', '24/7', 'Medical, Forensic, Victim Support'],
+  ];
+
+  const seedTx = db.transaction(() => {
+    for (const c of centers) insert.run(...c);
+  });
+  seedTx();
+
+  console.log(`✅ Seeded ${centers.length} help centers.`);
 }
 
 export function logAudit(db, action, actorType, actorId, targetType, targetId, details, ip) {

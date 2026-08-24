@@ -264,7 +264,11 @@ export default function VoiceAssessment() {
     });
 
     if (res.ok && res.data) {
-      result = res.data;
+      result = {
+        ...res.data,
+        transcript: finalContent,
+        date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) + ", " + new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+      };
     } else {
       console.warn("Backend AI assessment failed, falling back to local parser:", res.error);
       result = performAiAssessment(finalContent, durationVal, langName);

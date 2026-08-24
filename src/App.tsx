@@ -16,6 +16,10 @@ import GeoAnalysis from "./pages/GeoAnalysis";
 import AdminReports from "./pages/AdminReports";
 import AdminSecurity from "./pages/AdminSecurity";
 
+import ProfilePage from "./pages/ProfilePage";
+import PrivacyPage from "./pages/PrivacyPage";
+import NearbyHelp from "./pages/NearbyHelp";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -27,6 +31,7 @@ export default function App() {
 
         {/* User */}
         <Route path="/dashboard" element={<UserDashboard />} />
+        <Route path="/nearby-help" element={<NearbyHelp />} />
         <Route path="/voice" element={<VoiceAssessment />} />
         <Route path="/chat" element={<ChatAssessment />} />
         <Route path="/assessment-result" element={<AssessmentResult />} />
@@ -34,8 +39,8 @@ export default function App() {
         <Route path="/case-summary" element={<CaseSummary />} />
         <Route path="/my-case" element={<MyCase />} />
         <Route path="/documents" element={<MyCase />} />
-        <Route path="/profile" element={<UserDashboard />} />
-        <Route path="/privacy" element={<UserDashboard />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
 
         {/* Admin */}
         <Route path="/admin" element={<AdminDashboard />} />

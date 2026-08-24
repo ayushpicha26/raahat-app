@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import RaahatLogo from "./RaahatLogo";
 import {
-  LayoutDashboard, FolderOpen, Mic, MessageSquare, Star, FileText, User, Lock, LogOut, Menu, X, Globe, Bell, Phone
+  LayoutDashboard, FolderOpen, Mic, MessageSquare, Star, FileText, User, Lock, LogOut, Menu, X, Globe, Bell, Phone, MapPin
 } from "lucide-react";
+import { getUser, removeToken, clearUser } from "../utils/api";
 
 const NAV = [
   { icon: <LayoutDashboard size={16} />, label: "Dashboard", path: "/dashboard" },
   { icon: <FolderOpen size={16} />, label: "My Case", path: "/my-case" },
+  { icon: <MapPin size={16} />, label: "Nearby Help", path: "/nearby-help" },
   { icon: <Mic size={16} />, label: "Voice Support", path: "/voice" },
   { icon: <MessageSquare size={16} />, label: "Chat Support", path: "/chat" },
   { icon: <Star size={16} />, label: "Recommendations", path: "/recommendations" },
@@ -20,6 +22,21 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const nav = useNavigate();
   const loc = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    setCurrentUser(getUser());
+  }, []);
+
+  function handleLogout() {
+    removeToken();
+    clearUser();
+    nav("/");
+  }
+
+  const name = currentUser?.name || "Citizen";
+  const caseId = currentUser?.caseId || "No Active Case";
+  const initial = name.charAt(0).toUpperCase();
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -40,7 +57,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
               <Phone size={12} /> <span className="font-mono font-bold text-white">14566</span>
             </div>
             <button className="text-navy-300 hover:text-white"><Bell size={16} /></button>
-            <button onClick={() => nav("/")} className="flex items-center gap-1.5 text-navy-300 hover:text-white text-xs">
+            <button onClick={handleLogout} className="flex items-center gap-1.5 text-navy-300 hover:text-white text-xs cursor-pointer">
               <LogOut size={14} /> Logout
             </button>
           </div>
@@ -53,7 +70,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           <nav className="flex-1 py-4 overflow-y-auto">
             {NAV.map(item => (
               <button key={item.path} onClick={() => { nav(item.path); setMobileOpen(false); }}
-                className={`w-full flex items-center gap-2.5 px-5 py-2.5 text-sm font-medium text-left transition-colors
+                className={`w-full flex items-center gap-2.5 px-5 py-2.5 text-sm font-medium text-left transition-colors cursor-pointer
                   ${loc.pathname === item.path ? "bg-navy-50 text-navy-900 border-r-2 border-navy-900" : "text-slate-600 hover:bg-slate-50 hover:text-navy-800"}`}>
                 <span className={loc.pathname === item.path ? "text-navy-800" : "text-slate-400"}>{item.icon}</span>
                 {item.label}
@@ -62,10 +79,12 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           </nav>
           <div className="p-4 border-t border-slate-100">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-navy-100 rounded-full flex items-center justify-center text-navy-800 font-bold text-sm">P</div>
-              <div>
-                <div className="text-xs font-semibold text-navy-900">Priya Sharma</div>
-                <div className="text-xs text-slate-400 font-mono">RAH-2026-00124</div>
+              <div className="w-8 h-8 bg-navy-100 rounded-full flex items-center justify-center text-navy-800 font-bold text-sm">
+                {initial}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold text-navy-900 truncate">{name}</div>
+                <div className="text-[10px] text-slate-400 font-mono truncate">{caseId}</div>
               </div>
             </div>
           </div>

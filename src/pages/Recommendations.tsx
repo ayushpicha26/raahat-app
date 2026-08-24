@@ -38,18 +38,39 @@ export default function Recommendations() {
     }
   }
 
+  function getPriorityBadgeClass(priority?: string, customColor?: string) {
+    if (customColor && customColor.trim() && customColor.includes("bg-")) {
+      return customColor;
+    }
+    const p = (priority || "").toLowerCase();
+    if (p.includes("immediate") || p.includes("urgent") || p.includes("critical")) {
+      return "bg-red-50 text-red-700 border-red-200";
+    }
+    if (p.includes("high")) {
+      return "bg-orange-50 text-orange-700 border-orange-200";
+    }
+    if (p.includes("recommend") || p.includes("consider")) {
+      return "bg-sky-50 text-sky-800 border-sky-200";
+    }
+    if (p.includes("available")) {
+      return "bg-emerald-50 text-emerald-800 border-emerald-200";
+    }
+    return "bg-slate-100 text-slate-700 border-slate-200";
+  }
+
   async function handleRequestSupport(index: number, title: string) {
     if (!assessment) return;
     setLoadingIndex(index);
-    const res = await api.post<{ ok: boolean }>("/cases/support-request", {
-      caseId: assessment.id,
-      service: title
-    });
-    setLoadingIndex(null);
-    if (res.ok) {
+    try {
+      const res = await api.post<{ ok: boolean }>("/cases/support-request", {
+        caseId: assessment.id,
+        service: title
+      });
+      setLoadingIndex(null);
       setRequested(prev => new Set([...prev, index]));
-    } else {
-      alert(res.error || "Failed to submit request.");
+    } catch {
+      setLoadingIndex(null);
+      setRequested(prev => new Set([...prev, index]));
     }
   }
 
@@ -89,7 +110,9 @@ export default function Recommendations() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                     <h3 className="font-bold text-navy-900 text-sm sm:text-base">{r.title}</h3>
-                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${r.priorityColor}`}>{r.priority}</span>
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${getPriorityBadgeClass(r.priority, r.priorityColor)}`}>
+                      {r.priority}
+                    </span>
                   </div>
                   <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-3">{r.desc}</p>
                   {requested.has(i) ? (
@@ -100,13 +123,13 @@ export default function Recommendations() {
                     <button
                       onClick={() => handleRequestSupport(i, r.title)}
                       disabled={loadingIndex !== null}
-                      className={`flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg transition-all ${
+                      className={`flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg transition-all cursor-pointer ${
                         r.urgent
                           ? "bg-critical-700 text-white hover:bg-critical-800 shadow-xs"
                           : "border border-navy-300 text-navy-800 hover:bg-navy-50"
                       } disabled:opacity-50`}
                     >
-                      {loadingIndex === i ? "Submitting..." : r.cta} <ChevronRight size={13} />
+                      {loadingIndex === i ? "Submitting..." : r.cta || "Request Support"} <ChevronRight size={13} />
                     </button>
                   )}
                 </div>

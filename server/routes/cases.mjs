@@ -7,7 +7,7 @@ const router = Router();
 // ── POST /api/cases — Create new case from assessment ──
 router.post('/', requireAuth, (req, res) => {
   const db = req.app.locals.db;
-  const { transcript, svi, priority, priorityLabel, problemTypes, summary, consequences, factors, indicators, recommendations, languageDetected, audioDurationSeconds, aiMode } = req.body;
+  const { transcript, svi, priority, priorityLabel, problemTypes, summary, consequences, factors, indicators, recommendations, languageDetected, audioDurationSeconds, aiMode, latitude, longitude } = req.body;
 
   if (!transcript || svi === undefined || !priority) {
     return res.status(400).json({ error: 'Transcript, SVI, and priority are required.' });
@@ -19,14 +19,15 @@ router.post('/', requireAuth, (req, res) => {
   const userState = req.user.state || 'Maharashtra';
 
   const result = db.prepare(`
-    INSERT INTO cases (case_id, user_id, transcript, svi, priority, priority_label, problem_types, summary, consequences, status, language_detected, audio_duration_seconds, ai_mode, district, state)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO cases (case_id, user_id, transcript, svi, priority, priority_label, problem_types, summary, consequences, status, language_detected, audio_duration_seconds, ai_mode, district, state, latitude, longitude)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     caseId, req.user.id, transcript, svi, priority, priorityLabel || '',
     JSON.stringify(problemTypes || []), summary || '', consequences || '',
     svi >= 80 ? 'Human Review Required' : 'Assessment Pending',
     languageDetected || 'English', audioDurationSeconds || 0, aiMode || 'local',
-    userDistrict, userState
+    userDistrict, userState,
+    latitude || null, longitude || null
   );
 
   // Save factors

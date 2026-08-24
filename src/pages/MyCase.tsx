@@ -3,6 +3,7 @@ import UserLayout from "../components/UserLayout";
 import { CheckCircle, Clock, Circle, Sparkles, AlertCircle } from "lucide-react";
 import { StatusBadge } from "../components/Badge";
 import { api, getUser } from "../utils/api";
+import { getStoredAssessment } from "../utils/assessmentStore";
 
 interface CaseDetails {
   case_id: string;
@@ -24,19 +25,49 @@ export default function MyCase() {
 
   useEffect(() => {
     const user = getUser();
-    if (user && user.caseId) {
-      api.get<CaseDetails>(`/cases/${user.caseId}`)
-        .then(res => {
+
+    // 1. Try fetching user's latest case from API
+    api.get<{ cases: CaseDetails[] }>("/cases?limit=1")
+      .then(res => {
+        if (res.ok && res.data && res.data.cases && res.data.cases.length > 0) {
+          setCaseInfo(res.data.cases[0]);
           setLoading(false);
-          if (res.ok && res.data) {
-            setCaseInfo(res.data);
-          }
-        })
-        .catch(err => {
-          console.error("Error loading case info:", err);
+        } else if (user && user.caseId) {
+          // 2. Try fetching by user.caseId specifically
+          return api.get<CaseDetails>(`/cases/${user.caseId}`);
+        } else {
+          fallbackToLocal();
+        }
+      })
+      .then(res => {
+        if (res && res.ok && res.data) {
+          setCaseInfo(res.data);
           setLoading(false);
+        } else if (loading) {
+          fallbackToLocal();
+        }
+      })
+      .catch(() => {
+        fallbackToLocal();
+      });
+
+    function fallbackToLocal() {
+      const stored = getStoredAssessment();
+      if (stored) {
+        setCaseInfo({
+          case_id: stored.id,
+          svi: stored.svi,
+          priority: stored.priority,
+          priority_label: stored.priorityLabel || (stored.priority + " PRIORITY").toUpperCase(),
+          status: stored.svi >= 80 ? "Human Review Required" : "Assessment Pending",
+          assigned_officer: "",
+          assigned_service: "Counselling & Support",
+          language_detected: stored.languageDetected || "English",
+          audio_duration_seconds: stored.audioDurationSeconds || 0,
+          created_at: stored.date || new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
-    } else {
+      }
       setLoading(false);
     }
   }, []);

@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 let genAI = null;
@@ -51,14 +54,15 @@ function initializeAI() {
   try {
     genAI = new GoogleGenerativeAI(apiKey);
     model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.6-flash',
+      systemInstruction: SYSTEM_PROMPT,
       generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.3,
         maxOutputTokens: 2048,
       },
     });
-    console.log('✅ Gemini AI initialized (model: gemini-2.0-flash)');
+    console.log('✅ Gemini AI initialized (model: gemini-3.6-flash)');
     return true;
   } catch (err) {
     console.warn('⚠️ Gemini AI initialization failed:', err.message);
@@ -78,11 +82,7 @@ export async function performServerAssessment(text, durationSeconds = 0, lang = 
     try {
       const prompt = `Analyze this victim testimony and provide a vulnerability assessment.\n\nLanguage: ${lang}\nDuration: ${durationSeconds}s\n\nTestimony:\n"${text}"`;
 
-      const result = await model.generateContent([
-        { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
-        { role: 'model', parts: [{ text: '{"ready": true}' }] },
-        { role: 'user', parts: [{ text: prompt }] },
-      ]);
+      const result = await model.generateContent(prompt);
 
       const response = result.response;
       const jsonText = response.text();
