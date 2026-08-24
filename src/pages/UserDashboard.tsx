@@ -1,19 +1,37 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UserLayout from "../components/UserLayout";
-import { Mic, MessageSquare, AlertCircle, Clock, Shield, ChevronRight, CheckCircle } from "lucide-react";
+import { Mic, MessageSquare, AlertCircle, Clock, Shield, ChevronRight, CheckCircle, Sparkles } from "lucide-react";
 import { StatusBadge } from "../components/Badge";
+import { getStoredAssessment } from "../utils/assessmentStore";
+import { AssessmentResultData } from "../utils/aiEngine";
 
 export default function UserDashboard() {
   const nav = useNavigate();
+  const [assessment, setAssessment] = useState<AssessmentResultData | null>(null);
+
+  useEffect(() => {
+    setAssessment(getStoredAssessment());
+  }, []);
+
+  const currentCaseId = assessment?.id || "RAH-2026-00124";
+  const priorityLabel = assessment?.priorityLabel || "HIGH PRIORITY";
+  const priorityColor = assessment?.priority === "Critical"
+    ? "text-critical-700 font-bold"
+    : assessment?.priority === "High"
+    ? "text-high-700 font-bold"
+    : assessment?.priority === "Moderate"
+    ? "text-amber-700 font-bold"
+    : "text-safe-700 font-bold";
 
   return (
     <UserLayout>
       <div className="max-w-4xl mx-auto px-6 py-8">
         {/* Welcome */}
-        <div className="bg-navy-950 text-white rounded p-6 mb-6">
+        <div className="bg-navy-950 text-white rounded-lg p-6 mb-6 shadow-sm">
           <h1 className="text-xl font-bold mb-1">Welcome. You are not alone.</h1>
           <p className="text-navy-300 text-sm leading-relaxed">
-            Tell us what happened in the way that feels most comfortable to you. RAAHAT is here to listen and connect you with the right support.
+            Tell us what happened in the way that feels most comfortable to you. RAAHAT is here to listen, assess your situation in real time, and connect you with the right support.
           </p>
         </div>
 
@@ -22,39 +40,47 @@ export default function UserDashboard() {
           <ActionCard
             icon={<Mic size={28} className="text-navy-700" />}
             title="Talk Through Voice"
-            desc="Speak naturally and tell us what you are experiencing. RAAHAT will listen and assist."
+            desc="Speak naturally into your microphone. Real-time speech transcription & instant vulnerability assessment."
             cta="Start Voice Support"
+            badge="Real-Time Voice AI"
             onClick={() => nav("/voice")}
           />
           <ActionCard
             icon={<MessageSquare size={28} className="text-navy-700" />}
             title="Continue with Chat"
-            desc="Describe your situation through text at your own pace."
+            desc="Describe your situation through text or voice dictation at your own pace with empathetic AI guidance."
             cta="Open Chat Support"
             onClick={() => nav("/chat")}
           />
         </div>
 
         {/* Case Status */}
-        <div className="bg-white border border-slate-200 rounded mb-6">
+        <div className="bg-white border border-slate-200 rounded-lg mb-6 shadow-xs">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="font-bold text-navy-900">Case Status</h2>
-            <button onClick={() => nav("/my-case")} className="text-sm text-navy-700 hover:underline flex items-center gap-1">
+            <h2 className="font-bold text-navy-900 flex items-center gap-2">
+              Active Case Status
+              {assessment && (
+                <span className="text-xs bg-navy-50 text-navy-800 font-semibold px-2 py-0.5 rounded flex items-center gap-1">
+                  <Sparkles size={11} /> SVI: {assessment.svi}/100
+                </span>
+              )}
+            </h2>
+            <button onClick={() => nav("/my-case")} className="text-sm text-navy-700 hover:underline flex items-center gap-1 font-medium">
               View Full Case <ChevronRight size={14} />
             </button>
           </div>
           <div className="p-5 grid md:grid-cols-2 gap-4">
-            <InfoRow label="Case ID" value="RAH-2026-00124" mono />
+            <InfoRow label="Case ID" value={currentCaseId} mono />
             <InfoRow label="Current Status" value={<StatusBadge status="Human Review Required" />} />
-            <InfoRow label="Assessment Status" value={<StatusBadge status="Under Review" />} />
-            <InfoRow label="Priority" value={<span className="text-sm font-bold text-critical-700">HIGH PRIORITY</span>} />
-            <InfoRow label="Assigned Support" value="Counselling (Pending)" />
-            <InfoRow label="Last Updated" value="22 Aug 2026, 10:47 AM" />
+            <InfoRow label="Assessment Status" value={<StatusBadge status="Complete" />} />
+            <InfoRow label="Priority Tier" value={<span className={`text-sm ${priorityColor}`}>{priorityLabel}</span>} />
+            <InfoRow label="Assigned Support" value={assessment?.recommendations[0]?.title || "Counselling & Safety Review"} />
+            <InfoRow label="Last Evaluated" value={assessment?.date || "Today"} />
           </div>
         </div>
 
         {/* AI Disclaimer */}
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded p-4 text-sm text-amber-800">
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs sm:text-sm text-amber-900">
           <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600" />
           <p className="leading-relaxed">
             <strong>Assessment Disclaimer:</strong> RAAHAT's AI assessment provides an indication of vulnerability to help prioritize support. It does not replace assessment by a qualified professional.
@@ -72,17 +98,20 @@ export default function UserDashboard() {
   );
 }
 
-function ActionCard({ icon, title, desc, cta, onClick }: { icon: React.ReactNode; title: string; desc: string; cta: string; onClick: () => void }) {
+function ActionCard({ icon, title, desc, cta, badge, onClick }: { icon: React.ReactNode; title: string; desc: string; cta: string; badge?: string; onClick: () => void }) {
   return (
-    <div className="bg-white border border-slate-200 rounded p-6 flex flex-col gap-4 hover:border-navy-300 cursor-pointer" onClick={onClick}>
-      <div className="w-12 h-12 bg-navy-50 rounded flex items-center justify-center">{icon}</div>
+    <div className="bg-white border border-slate-200 rounded-lg p-6 flex flex-col justify-between gap-4 hover:border-navy-400 hover:shadow-xs cursor-pointer transition-all" onClick={onClick}>
       <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="w-12 h-12 bg-navy-50 rounded-lg flex items-center justify-center border border-navy-100">{icon}</div>
+          {badge && <span className="text-[11px] font-semibold text-navy-800 bg-navy-50 border border-navy-100 px-2 py-0.5 rounded">{badge}</span>}
+        </div>
         <h3 className="font-bold text-navy-900 mb-1.5">{title}</h3>
-        <p className="text-sm text-slate-600 leading-relaxed mb-4">{desc}</p>
-        <button className="flex items-center gap-1.5 text-sm font-semibold text-navy-800 hover:text-navy-900">
-          {cta} <ChevronRight size={14} />
-        </button>
+        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{desc}</p>
       </div>
+      <button className="flex items-center gap-1.5 text-sm font-semibold text-navy-800 hover:text-navy-900 self-start">
+        {cta} <ChevronRight size={14} />
+      </button>
     </div>
   );
 }
@@ -98,7 +127,7 @@ function InfoRow({ label, value, mono = false }: { label: string; value: React.R
 
 function QuickLink({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex items-center gap-2.5 px-4 py-3 border border-slate-200 rounded bg-white text-sm font-medium text-slate-700 hover:border-navy-300 hover:text-navy-800 w-full">
+    <button onClick={onClick} className="flex items-center gap-2.5 px-4 py-3 border border-slate-200 rounded-lg bg-white text-xs sm:text-sm font-medium text-slate-700 hover:border-navy-300 hover:text-navy-900 w-full transition-all shadow-2xs">
       <span className="text-navy-600">{icon}</span> {label}
     </button>
   );
