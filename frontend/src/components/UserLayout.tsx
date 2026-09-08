@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import RaahatLogo from "./RaahatLogo";
 import {
-  LayoutDashboard, FolderOpen, Mic, MessageSquare, Star, FileText, User, Lock, LogOut, Menu, X, Globe, Bell, Phone, MapPin
+  LayoutDashboard, FolderOpen, Mic, MessageSquare, Star, FileText, User, Lock, LogOut, Menu, X, Globe, Bell, Phone, MapPin, Hospital
 } from "lucide-react";
 import { getUser, removeToken, clearUser } from "../utils/api";
 
@@ -10,6 +10,7 @@ const NAV = [
   { icon: <LayoutDashboard size={16} />, label: "Dashboard", path: "/dashboard" },
   { icon: <FolderOpen size={16} />, label: "My Case", path: "/my-case" },
   { icon: <MapPin size={16} />, label: "Nearby Help", path: "/nearby-help" },
+  { icon: <Hospital size={16} className="text-red-600" />, label: "Medical Help", path: "/medical" },
   { icon: <Mic size={16} />, label: "Voice Support", path: "/voice" },
   { icon: <MessageSquare size={16} />, label: "Chat Support", path: "/chat" },
   { icon: <Star size={16} />, label: "Recommendations", path: "/recommendations" },
@@ -25,8 +26,15 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
-    setCurrentUser(getUser());
-  }, []);
+    const user = getUser();
+    if (!user) {
+      nav("/login");
+    } else if (user.role === "admin") {
+      nav("/admin");
+    } else {
+      setCurrentUser(user);
+    }
+  }, [nav]);
 
   function handleLogout() {
     removeToken();

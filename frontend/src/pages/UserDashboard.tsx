@@ -73,6 +73,24 @@ export default function UserDashboard() {
           </p>
         </div>
 
+        {/* Emergency Medical Alert */}
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-fade-in">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-red-100 rounded-full flex items-center justify-center shrink-0 text-red-700 mt-0.5 sm:mt-0 animate-pulse">
+              <AlertCircle size={18} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-red-950">Need Immediate Medical Attention?</h3>
+              <p className="text-xs text-red-800 leading-relaxed mt-0.5">
+                Survivors or victims requiring urgent care can locate the nearest hospital via GPS and generate a digital medical sheet to save critical time and skip repetitive paperwork.
+              </p>
+            </div>
+          </div>
+          <button onClick={() => nav("/medical")} className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-700 text-white text-xs font-bold rounded hover:bg-red-800 transition shrink-0 cursor-pointer">
+            Locate Nearest Hospital <ChevronRight size={12} />
+          </button>
+        </div>
+
         {/* Main actions */}
         <div className="grid md:grid-cols-2 gap-5 mb-6">
           <ActionCard

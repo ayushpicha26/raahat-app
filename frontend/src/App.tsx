@@ -19,6 +19,7 @@ import AdminSecurity from "./pages/AdminSecurity";
 import ProfilePage from "./pages/ProfilePage";
 import PrivacyPage from "./pages/PrivacyPage";
 import NearbyHelp from "./pages/NearbyHelp";
+import EmergencyMedical from "./pages/EmergencyMedical";
 
 export default function App() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/documents" element={<MyCase />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/medical" element={<EmergencyMedical />} />
 
         {/* Admin */}
         <Route path="/admin" element={<AdminDashboard />} />

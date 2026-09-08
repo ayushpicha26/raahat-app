@@ -25,31 +25,40 @@ export default function MyCase() {
 
   useEffect(() => {
     const user = getUser();
+    let active = true;
 
-    // 1. Try fetching user's latest case from API
-    api.get<{ cases: CaseDetails[] }>("/cases?limit=1")
-      .then(res => {
+    async function fetchCase() {
+      try {
+        // 1. Try fetching user's latest case from API
+        const res = await api.get<{ cases: CaseDetails[] }>("/cases?limit=1");
+        if (!active) return;
+
         if (res.ok && res.data && res.data.cases && res.data.cases.length > 0) {
           setCaseInfo(res.data.cases[0]);
           setLoading(false);
-        } else if (user && user.caseId) {
-          // 2. Try fetching by user.caseId specifically
-          return api.get<CaseDetails>(`/cases/${user.caseId}`);
-        } else {
-          fallbackToLocal();
+          return;
         }
-      })
-      .then(res => {
-        if (res && res.ok && res.data) {
-          setCaseInfo(res.data);
-          setLoading(false);
-        } else if (loading) {
-          fallbackToLocal();
+
+        // 2. Try fetching by user.caseId specifically
+        if (user && user.caseId) {
+          const res2 = await api.get<CaseDetails>(`/cases/${user.caseId}`);
+          if (!active) return;
+
+          if (res2.ok && res2.data) {
+            setCaseInfo(res2.data);
+            setLoading(false);
+            return;
+          }
         }
-      })
-      .catch(() => {
+
+        // 3. Fallback to local storage if API didn't return any case
         fallbackToLocal();
-      });
+      } catch (err) {
+        if (active) {
+          fallbackToLocal();
+        }
+      }
+    }
 
     function fallbackToLocal() {
       const stored = getStoredAssessment();
@@ -70,6 +79,12 @@ export default function MyCase() {
       }
       setLoading(false);
     }
+
+    fetchCase();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (loading) {

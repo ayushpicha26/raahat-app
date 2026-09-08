@@ -1,42 +1,13 @@
 {
-  "name": "raahat-government-support-platform",
+  "name": "raahat-app",
   "private": true,
-  "version": "1.0.0",
-  "type": "module",
+  "workspaces": ["frontend", "backend"],
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "server": "node server.mjs",
-    "build": "vite build",
-    "start": "node server.mjs"
-  },
-  "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "@types/leaflet": "^1.9.22",
-    "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^13.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "leaflet": "^1.9.4",
-    "lucide-react": "^1.33.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-leaflet": "^5.0.0",
-    "react-router-dom": "^7.18.2",
-    "recharts": "^3.10.1"
+    "dev": "concurrently -n fe,be -c cyan,green \"npm run dev -w frontend\" \"npm run dev -w backend\"",
+    "build": "npm run build -w frontend",
+    "start": "npm run start -w backend"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^6.0.0",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.0",
-    "vite": "^8.0.5"
-  },
-  "engines": {
-    "node": ">=20"
+    "concurrently": "^9.0.0"
   }
 }

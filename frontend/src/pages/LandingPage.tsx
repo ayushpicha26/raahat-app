@@ -77,7 +77,7 @@ export default function LandingPage() {
               <button onClick={() => nav("/register")} className="flex items-center gap-2 px-6 py-3 bg-white text-navy-900 font-semibold rounded hover:bg-navy-50">
                 Get Support <ChevronRight size={16} />
               </button>
-              <button className="px-6 py-3 border border-navy-600 text-white font-semibold rounded hover:bg-navy-800">
+              <button onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })} className="px-6 py-3 border border-navy-600 text-white font-semibold rounded hover:bg-navy-800 cursor-pointer">
                 How RAAHAT Works
               </button>
             </div>
@@ -115,15 +115,15 @@ export default function LandingPage() {
               Your information is handled confidentially. RAAHAT uses your information only for support, assessment and authorized case management. Data is encrypted and accessible only to authorized personnel.
             </p>
             <div className="flex gap-2 shrink-0">
-              <button className="px-4 py-2 text-sm font-semibold border border-navy-300 text-navy-800 rounded hover:bg-navy-50">Read Privacy Policy</button>
-              <button onClick={() => nav("/register")} className="px-4 py-2 text-sm font-semibold text-white bg-navy-900 rounded hover:bg-navy-800">Continue Securely</button>
+              <button className="px-4 py-2 text-sm font-semibold border border-navy-300 text-navy-800 rounded hover:bg-navy-50 cursor-pointer">Read Privacy Policy</button>
+              <button onClick={() => nav("/register")} className="px-4 py-2 text-sm font-semibold text-white bg-navy-900 rounded hover:bg-navy-800 cursor-pointer">Continue Securely</button>
             </div>
           </div>
         </div>
       </section>
 
       {/* How It Works */}
-      <section className="py-16 px-6 bg-white">
+      <section id="how-it-works" className="py-16 px-6 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="mb-10">
             <div className="text-xs font-bold text-navy-600 uppercase tracking-widest mb-2">Process</div>

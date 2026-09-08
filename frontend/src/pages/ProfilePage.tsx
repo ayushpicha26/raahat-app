@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import UserLayout from "../components/UserLayout";
 import { User, Phone, Mail, MapPin, Shield, Save, CheckCircle, Edit3, Award } from "lucide-react";
-import { getUser, setUser as setStoredUser } from "../utils/api";
+import { api, getUser, setUser as setStoredUser } from "../utils/api";
 
 export default function ProfilePage() {
   const [user, setUserState] = useState<any>(null);
@@ -11,6 +11,7 @@ export default function ProfilePage() {
     name: "",
     email: "",
     mobile: "",
+    alternatePhone: "",
     category: "",
     language: "",
     district: "",
@@ -26,6 +27,7 @@ export default function ProfilePage() {
         name: u.name || "",
         email: u.email || "",
         mobile: u.mobile || "",
+        alternatePhone: u.alternatePhone || "",
         category: u.category || "General",
         language: u.language || "English",
         district: u.district || "Mumbai",
@@ -35,8 +37,22 @@ export default function ProfilePage() {
     }
   }, []);
 
-  function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    
+    const response = await api.put("/users/profile", {
+      name: form.name,
+      language: form.language,
+      address: form.address,
+      district: form.district,
+      alternatePhone: form.alternatePhone
+    });
+    
+    if (!response.ok) {
+      alert("Failed to update profile: " + response.error);
+      return;
+    }
+
     const updated = { ...user, ...form };
     setUserState(updated);
     setStoredUser(updated);
@@ -130,6 +146,20 @@ export default function ProfilePage() {
                     disabled={!editing}
                     value={form.mobile}
                     onChange={e => setForm({ ...form, mobile: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded text-sm disabled:bg-slate-50 text-slate-800 font-medium focus:border-navy-600 outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Alternate Mobile Number</label>
+                <div className="relative">
+                  <Phone size={16} className="absolute left-3 top-3 text-slate-400" />
+                  <input
+                    type="text"
+                    disabled={!editing}
+                    value={form.alternatePhone}
+                    onChange={e => setForm({ ...form, alternatePhone: e.target.value })}
                     className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded text-sm disabled:bg-slate-50 text-slate-800 font-medium focus:border-navy-600 outline-none font-mono"
                   />
                 </div>

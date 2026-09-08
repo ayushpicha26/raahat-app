@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import RaahatLogo from "./RaahatLogo";
 import {
   LayoutDashboard, Folder, AlertTriangle, BarChart3, FileText, Settings, LogOut,
   Bell, ChevronDown, Shield, Menu, X, MapPin, BookOpen
 } from "lucide-react";
+import { getUser, removeToken, clearUser } from "../utils/api";
 
 const NAV = [
   { icon: <LayoutDashboard size={15} />, label: "Dashboard", path: "/admin" },
@@ -29,6 +30,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const loc = useLocation();
   const [caseOpen, setCaseOpen] = useState(loc.pathname.includes("/admin/cases"));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const user = getUser();
+    if (!user) {
+      nav("/login");
+    } else if (user.role !== "admin") {
+      nav("/dashboard");
+    } else {
+      setCurrentUser(user);
+      setAuthorized(true);
+    }
+  }, [nav]);
+
+  function handleLogout() {
+    removeToken();
+    clearUser();
+    nav("/");
+  }
+
+  if (!authorized) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-slate-500 text-sm">Verifying administration authorization...</div>
+      </div>
+    );
+  }
+
+  const name = currentUser?.name || "Admin Officer";
+  const designation = currentUser?.designation || "Officer";
+  const location = currentUser?.district ? `${currentUser.district}, ${currentUser.state || 'Maharashtra'}` : (currentUser.state || 'Maharashtra');
+  const initial = name.charAt(0).toUpperCase();
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -47,10 +81,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 text-sm">
-              <div className="w-7 h-7 bg-navy-700 rounded-full flex items-center justify-center text-xs font-bold">A</div>
+              <div className="w-7 h-7 bg-navy-700 rounded-full flex items-center justify-center text-xs font-bold">{initial}</div>
               <div>
-                <div className="text-xs font-semibold">Adv. Rajesh Kumar</div>
-                <div className="text-navy-300 text-xs">District Officer, Nagpur</div>
+                <div className="text-xs font-semibold">{name}</div>
+                <div className="text-navy-300 text-[10px]">{designation} · {location}</div>
               </div>
               <ChevronDown size={12} className="text-navy-400" />
             </div>
@@ -58,7 +92,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Bell size={16} />
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-critical-700 text-white text-xs font-bold rounded-full flex items-center justify-center">4</span>
             </button>
-            <button onClick={() => nav("/")} className="flex items-center gap-1.5 text-navy-300 hover:text-white text-xs">
+            <button onClick={handleLogout} className="flex items-center gap-1.5 text-navy-300 hover:text-white text-xs cursor-pointer">
               <LogOut size={14} /> Logout
             </button>
           </div>

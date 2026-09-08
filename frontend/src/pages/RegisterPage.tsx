@@ -11,17 +11,85 @@ export default function RegisterPage() {
   const nav = useNavigate();
   const [step, setStep] = useState(1);
   const [showPwd, setShowPwd] = useState(false);
+  const [showCpwd, setShowCpwd] = useState(false);
   const [verStatus, setVerStatus] = useState<"none" | "pending" | "verified">("none");
   const [consents, setConsents] = useState({ privacy: false, ai: false, medical: false });
-  const [form, setForm] = useState({ name: "", mobile: "", email: "", dob: "", state: "", district: "", lang: "English", address: "", pwd: "", cpwd: "", category: "SC" });
+  const [form, setForm] = useState({ name: "", mobile: "", alternatePhone: "", email: "", dob: "", state: "", district: "", lang: "English", address: "", pwd: "", cpwd: "", category: "SC" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   const allConsents = consents.privacy && consents.ai && consents.medical;
 
-  function handleFile() {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowed = ["application/pdf", "image/jpeg", "image/png"];
+    if (!allowed.includes(file.type)) {
+      setError("Only PDF, JPG, or PNG files are allowed.");
+      return;
+    }
+    if (file.size > maxSize) {
+      setError("File size must be under 5 MB.");
+      return;
+    }
+    setError("");
+    setUploadedFile(file);
     setVerStatus("pending");
-    setTimeout(() => setVerStatus("verified"), 1500);
+
+    // For image files, verify with AI
+    if (file.type.startsWith("image/")) {
+      try {
+        const base64 = await fileToBase64(file);
+        const res = await fetch("/api/ai/verify-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
+        });
+        const result = await res.json();
+
+        if (result.verified) {
+          setVerStatus("verified");
+        } else {
+          setVerStatus("none");
+          setUploadedFile(null);
+          setError(result.reason || "This does not appear to be a valid caste certificate. Please upload the correct document.");
+          // Reset the file input so user can re-select
+          e.target.value = "";
+        }
+      } catch {
+        // Network error — accept for manual review
+        setVerStatus("verified");
+      }
+    } else {
+      // PDF files — accept for manual review (Gemini vision doesn't read PDFs inline)
+      setTimeout(() => setVerStatus("verified"), 1500);
+    }
+  }
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Strip the data:...;base64, prefix
+        resolve(result.split(",")[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Phone number: allow only digits, max 10
+  function handleMobileChange(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+    setForm({ ...form, mobile: digits });
+  }
+
+  function handleAltPhoneChange(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+    setForm({ ...form, alternatePhone: digits });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -54,6 +122,7 @@ export default function RegisterPage() {
       category: form.category,
       language: form.lang,
       address: form.address.trim(),
+      alternatePhone: form.alternatePhone.trim() || undefined,
     };
 
     const res = await api.post<{ token: string; user: any }>("/auth/register", payload);
@@ -108,15 +177,40 @@ export default function RegisterPage() {
           </div>
 
           {step === 1 && (
-            <form className="px-8 py-6 space-y-5" onSubmit={(e) => { e.preventDefault(); setStep(2); }}>
+            <form className="px-8 py-6 space-y-5" onSubmit={(e) => {
+              e.preventDefault();
+              if (form.mobile.length !== 10) {
+                setError("Mobile number must be exactly 10 digits.");
+                return;
+              }
+              if (form.alternatePhone && form.alternatePhone.length !== 10) {
+                setError("Alternate phone number must be exactly 10 digits.");
+                return;
+              }
+              if (!form.pwd || form.pwd.length < 8) {
+                setError("Password must be at least 8 characters long.");
+                return;
+              }
+              if (form.pwd !== form.cpwd) {
+                setError("Passwords do not match. Please ensure Confirm Password matches Password.");
+                return;
+              }
+              if (!form.state) {
+                setError("Please select your state.");
+                return;
+              }
+              setError("");
+              setStep(2);
+            }}>
               <div className="grid md:grid-cols-2 gap-5">
                 <Field label="Full Name *" name="name" value={form.name} onChange={v => setForm({...form, name: v})} placeholder="As per official records" />
-                <Field label="Mobile Number *" name="mobile" value={form.mobile} onChange={v => setForm({...form, mobile: v})} placeholder="+91 XXXXX XXXXX" type="tel" />
-                <Field label="Email Address" name="email" value={form.email} onChange={v => setForm({...form, email: v})} placeholder="Optional" type="email" />
+                <Field label="Mobile Number *" name="mobile" value={form.mobile} onChange={handleMobileChange} placeholder="10-digit number" type="tel" maxLength={10} pattern="[0-9]{10}" />
+                <Field label="Alternate Mobile No." name="alternatePhone" value={form.alternatePhone} onChange={handleAltPhoneChange} placeholder="Optional" type="tel" required={false} maxLength={10} />
+                <Field label="Email Address" name="email" value={form.email} onChange={v => setForm({...form, email: v})} placeholder="Optional" type="email" required={false} />
                 <Field label="Date of Birth *" name="dob" value={form.dob} onChange={v => setForm({...form, dob: v})} type="date" />
                 <div>
                   <label className="block text-sm font-semibold text-navy-900 mb-1.5">State *</label>
-                  <select value={form.state} onChange={e => setForm({...form, state: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-600">
+                  <select required value={form.state} onChange={e => setForm({...form, state: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-600">
                     <option value="">Select State</option>
                     {STATES.map(s => <option key={s}>{s}</option>)}
                   </select>
@@ -134,13 +228,30 @@ export default function RegisterPage() {
                 <div>
                   <label className="block text-sm font-semibold text-navy-900 mb-1.5">Password *</label>
                   <div className="relative">
-                    <input type={showPwd ? "text" : "password"} value={form.pwd} onChange={e => setForm({...form, pwd: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-navy-600 pr-9" placeholder="Min. 8 characters" />
-                    <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-2.5 text-slate-400">
+                    <input required minLength={8} type={showPwd ? "text" : "password"} value={form.pwd} onChange={e => setForm({...form, pwd: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-navy-600 pr-9" placeholder="Min. 8 characters" />
+                    <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
                       {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
+                  {form.pwd && form.pwd.length < 8 && (
+                    <p className="text-xs text-amber-600 mt-1">{form.pwd.length}/8 characters minimum</p>
+                  )}
                 </div>
-                <Field label="Confirm Password *" name="cpwd" value={form.cpwd} onChange={v => setForm({...form, cpwd: v})} type="password" placeholder="Re-enter password" />
+                <div>
+                  <label className="block text-sm font-semibold text-navy-900 mb-1.5">Confirm Password *</label>
+                  <div className="relative">
+                    <input required minLength={8} type={showCpwd ? "text" : "password"} value={form.cpwd} onChange={e => setForm({...form, cpwd: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-navy-600 pr-9" placeholder="Re-enter password" />
+                    <button type="button" onClick={() => setShowCpwd(!showCpwd)} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                      {showCpwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  {form.cpwd && form.pwd !== form.cpwd && (
+                    <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                  )}
+                  {form.cpwd && form.pwd === form.cpwd && (
+                    <p className="text-xs text-emerald-600 mt-1 font-medium">✓ Passwords match</p>
+                  )}
+                </div>
               </div>
               <div className="pt-2 flex justify-end">
                 <button type="submit" className="px-6 py-2.5 bg-navy-900 text-white font-semibold text-sm rounded hover:bg-navy-800 transition-all">Next: Eligibility Verification</button>
@@ -174,12 +285,21 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-navy-900 mb-1.5">Upload Caste Certificate</label>
-                  <div className="border-2 border-dashed border-slate-300 rounded p-6 text-center cursor-pointer hover:border-navy-400 hover:bg-navy-50 transition-all" onClick={handleFile}>
+                  <label className="block text-sm font-semibold text-navy-900 mb-1.5">
+                    Upload Caste Certificate {form.category !== "General" ? "*" : "(Optional)"}
+                  </label>
+                  <label className={`border-2 border-dashed rounded p-6 text-center cursor-pointer transition-all block ${
+                    uploadedFile ? "border-green-400 bg-green-50" : "border-slate-300 hover:border-navy-400 hover:bg-navy-50"
+                  }`}>
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFile} className="hidden" />
                     <Upload size={24} className="mx-auto mb-2 text-slate-400" />
-                    <p className="text-sm text-slate-600">Click to upload or drag and drop</p>
+                    {uploadedFile ? (
+                      <p className="text-sm text-green-700 font-medium">{uploadedFile.name}</p>
+                    ) : (
+                      <p className="text-sm text-slate-600">Click to upload or drag and drop</p>
+                    )}
                     <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG — Max 5 MB</p>
-                  </div>
+                  </label>
                   {verStatus === "pending" && (
                     <div className="flex items-center gap-2 mt-2 text-amber-700 text-sm animate-pulse">
                       <AlertCircle size={14} /> Verification Pending
@@ -194,7 +314,18 @@ export default function RegisterPage() {
               </div>
               <div className="flex justify-between mt-6">
                 <button onClick={() => setStep(1)} className="px-5 py-2.5 border border-slate-300 text-slate-600 font-semibold text-sm rounded hover:bg-slate-50 transition-all">Back</button>
-                <button onClick={() => setStep(3)} className="px-6 py-2.5 bg-navy-900 text-white font-semibold text-sm rounded hover:bg-navy-800 transition-all">Next: Consent</button>
+                <button onClick={() => {
+                  if (form.category !== "General" && !uploadedFile) {
+                    setError("Please upload your caste certificate to proceed.");
+                    return;
+                  }
+                  setError("");
+                  setStep(3);
+                }} className={`px-6 py-2.5 font-semibold text-sm rounded transition-all ${
+                  form.category !== "General" && !uploadedFile
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    : "bg-navy-900 text-white hover:bg-navy-800"
+                }`}>Next: Consent</button>
               </div>
             </div>
           )}
@@ -242,13 +373,14 @@ export default function RegisterPage() {
   );
 }
 
-function Field({ label, name, value, onChange, placeholder = "", type = "text" }: {
-  label: string; name: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+function Field({ label, name, value, onChange, placeholder = "", type = "text", required: isRequired = true, maxLength, pattern }: {
+  label: string; name: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; required?: boolean; maxLength?: number; pattern?: string;
 }) {
   return (
     <div>
       <label className="block text-sm font-semibold text-navy-900 mb-1.5">{label}</label>
-      <input type={type} name={name} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required
+      <input type={type} name={name} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={isRequired}
+        maxLength={maxLength} pattern={pattern}
         className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-600 focus:ring-1 focus:ring-navy-200 transition-all placeholder:text-slate-400" />
     </div>
   );

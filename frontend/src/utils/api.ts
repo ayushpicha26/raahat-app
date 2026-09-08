@@ -7,20 +7,20 @@ export interface ApiResponse<T> {
 }
 
 export function getToken(): string | null {
-  return localStorage.getItem("raahat_auth_token");
+  return sessionStorage.getItem("raahat_auth_token");
 }
 
 export function setToken(token: string): void {
-  localStorage.setItem("raahat_auth_token", token);
+  sessionStorage.setItem("raahat_auth_token", token);
 }
 
 export function removeToken(): void {
-  localStorage.removeItem("raahat_auth_token");
-  localStorage.removeItem("raahat_latest_assessment");
+  sessionStorage.removeItem("raahat_auth_token");
+  sessionStorage.removeItem("raahat_latest_assessment");
 }
 
 export function getUser(): any | null {
-  const raw = localStorage.getItem("raahat_user");
+  const raw = sessionStorage.getItem("raahat_user");
   if (!raw) return null;
   try {
     return JSON.parse(raw);
@@ -30,11 +30,11 @@ export function getUser(): any | null {
 }
 
 export function setUser(user: any): void {
-  localStorage.setItem("raahat_user", JSON.stringify(user));
+  sessionStorage.setItem("raahat_user", JSON.stringify(user));
 }
 
 export function clearUser(): void {
-  localStorage.removeItem("raahat_user");
+  sessionStorage.removeItem("raahat_user");
 }
 
 async function request<T>(
@@ -61,12 +61,17 @@ async function request<T>(
     const response = await fetch(`${API_BASE}${url}`, config);
     
     if (response.status === 401) {
-      removeToken();
-      clearUser();
-      if (!window.location.pathname.includes("/login") && !window.location.pathname.includes("/register") && window.location.pathname !== "/") {
-        window.location.href = "/login";
+      const data = await response.json().catch(() => ({}));
+      const isAuthPage = window.location.pathname.includes("/login") || window.location.pathname.includes("/register");
+      
+      if (!isAuthPage) {
+        removeToken();
+        clearUser();
+        if (window.location.pathname !== "/") {
+          window.location.href = "/login";
+        }
       }
-      return { ok: false, error: "Unauthorized access." };
+      return { ok: false, error: data.error || "Invalid credentials." };
     }
 
     const data = await response.json();
