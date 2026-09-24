@@ -1,0 +1,23 @@
+[
+  {"pattern": "fear", "category": "fear_distress", "severity": 4},
+  {"pattern": "afraid", "category": "fear_distress", "severity": 4},
+  {"pattern": "scared", "category": "fear_distress", "severity": 4},
+  {"pattern": "terror", "category": "fear_distress", "severity": 5},
+  {"pattern": "panic", "category": "fear_distress", "severity": 5},
+  {"pattern": "threat", "category": "fear_distress", "severity": 5},
+  {"pattern": "unsafe", "category": "fear_distress", "severity": 4},
+  {"pattern": "threaten", "category": "fear_distress", "severity": 5},
+  {"pattern": "threatened", "category": "fear_distress", "severity": 5},
+  {"pattern": "scary", "category": "fear_distress", "severity": 3},
+  {"pattern": "terrified", "category": "fear_distress", "severity": 5},
+  {"pattern": "dar", "category": "fear_distress", "severity": 3},
+  {"pattern": "darr", "category": "fear_distress", "severity": 4},
+  {"pattern": "khauf", "category": "fear_distress", "severity": 4},
+  {"pattern": "ghamrahat", "category": "fear_distress", "severity": 4},
+  {"pattern": "bhaag", "category": "fear_distress", "severity": 4},
+  {"pattern": "bhag", "category": "fear_distress", "severity": 4},
+  {"pattern": "darr lagta", "category": "fear_distress", "severity": 4},
+  {"pattern": "dar lagta", "category": "fear_distress", "severity": 4},
+  {"pattern": "dar gaya", "category": "fear_distress", "severity": 4},
+  {"pattern": "bhag gaya", "category": "fear_distress", "severity": 4}
+]

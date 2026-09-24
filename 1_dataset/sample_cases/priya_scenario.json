@@ -1,0 +1,98 @@
+[
+  {
+    "id": "case_001",
+    "victim_name": "Priya",
+    "age": 23,
+    "community": "SC",
+    "state": "Uttar Pradesh",
+    "district": "Sant Kabir Nagar",
+    "language": "Hindi-Bhojpuri",
+    "scenario": "late_night_call",
+    "transcript": "Ab toh lagta hai jaan se maar denge... Gaon mein koi humari sunta nahi hai... Kuch bacha hi nahi, mar jaayein toh behtar hai... Bhrata ko mara, ghar pe pathar maare, boycot bhi kar diya, police ne fir bhi nahi li...",
+    "expected_svi": 91,
+    "expected_priority": "Critical",
+    "flags": ["suicidal_ideation", "fear_lethal_violence", "social_boycott", "no_fir", "high_risk_district"],
+    "recommended_actions": [
+      "immediate_safety_plan",
+      "on_call_counsellor",
+      "district_admin_alert",
+      "fast_track_fir"
+    ]
+  },
+  {
+    "id": "case_002",
+    "victim_name": "Ramesh",
+    "age": 34,
+    "community": "SC",
+    "state": "Maharashtra",
+    "district": "Nashik",
+    "language": "Hindi-Marathi",
+    "scenario": "daytime_social_boycott",
+    "transcript": "Sab samaj waale hamse baat nahi karte, dukan waale nahi bech rahe, bacche school nahi ja sakte. Koi hamari sunewala nahi hai.",
+    "expected_svi": 76,
+    "expected_priority": "High",
+    "flags": ["social_boycott", "community_isolation", "livelihood_loss"],
+    "recommended_actions": [
+      "community_counsellor",
+      "dlsa_referral",
+      "social_welfare_contact"
+    ]
+  },
+  {
+    "id": "case_003",
+    "victim_name": "Sunita",
+    "age": 28,
+    "community": "ST",
+    "state": "Madhya Pradesh",
+    "district": "Shahdol",
+    "language": "Hindi",
+    "scenario": "land_displacement",
+    "transcript": "Jameen waale keh rahe hain ki hamaari jagah chhod do, nahi toh hmesa kar denge. Humaare paas jane ka koi rasta nahi hai.",
+    "expected_svi": 72,
+    "expected_priority": "High",
+    "flags": ["land_displacement", "threats", "isolation"],
+    "recommended_actions": [
+      "legal_aid",
+      "police_protection",
+      "rehabilitation_shelter"
+    ]
+  },
+  {
+    "id": "case_004",
+    "victim_name": "Mohan",
+    "age": 45,
+    "community": "SC",
+    "state": "Bihar",
+    "district": "Muzaffarpur",
+    "language": "Hindi-Bhojpuri",
+    "scenario": "police_refusal_fir",
+    "transcript": "Police waale keh rahe hain ki chhoti si baat hai, FIR nahi karenge. Koi sunewala nahi hai.",
+    "expected_svi": 65,
+    "expected_priority": "High",
+    "flags": ["fir_refused", "police_inaction"],
+    "recommended_actions": [
+      "dlsa_referral",
+      "superior_police_alert",
+      "legal_aid"
+    ]
+  },
+  {
+    "id": "case_005",
+    "victim_name": "Kamla",
+    "age": 35,
+    "community": "SC",
+    "state": "Maharashtra",
+    "district": "Pune",
+    "language": "Marathi",
+    "scenario": "temple_access_denied",
+    "transcript": "Temple mein jaane diya nahi, pani ki container toda, jaati ke naam pe gaali di.",
+    "expected_svi": 58,
+    "expected_priority": "Moderate",
+    "flags": ["caste_discrimination", "public_humiliation"],
+    "recommended_actions": [
+      "counselling",
+      "legal_awareness",
+      "dalit_rights_ngo"
+    ]
+  }
+]

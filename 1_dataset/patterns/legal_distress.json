@@ -1,0 +1,17 @@
+[
+  {"pattern": "police", "category": "legal_distress", "severity": 3},
+  {"pattern": "court", "category": "legal_distress", "severity": 4},
+  {"pattern": "fir", "category": "legal_distress", "severity": 4},
+  {"pattern": "lawyer", "category": "legal_distress", "severity": 3},
+  {"pattern": "case", "category": "legal_distress", "severity": 3},
+  {"pattern": "jail", "category": "legal_distress", "severity": 3},
+  {"pattern": "false accusation", "category": "legal_distress", "severity": 4},
+  {"pattern": "arrest", "category": "legal_distress", "severity": 4},
+  {"pattern": "justice", "category": "legal_distress", "severity": 3},
+  {"pattern": "nyay", "category": "legal_distress", "severity": 3},
+  {"pattern": "kanoon", "category": "legal_distress", "severity": 3},
+  {"pattern": "mukadma", "category": "legal_distress", "severity": 3},
+  {"pattern": "thanedar", "category": "legal_distress", "severity": 3},
+  {"pattern": "fir nahi", "category": "legal_distress", "severity": 5},
+  {"pattern": "police nahi", "category": "legal_distress", "severity": 4}
+]
