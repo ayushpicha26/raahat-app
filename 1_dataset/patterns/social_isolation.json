@@ -1,0 +1,21 @@
+[
+  {"pattern": "alone", "category": "social_isolation", "severity": 4},
+  {"pattern": "no one", "category": "social_isolation", "severity": 4},
+  {"pattern": "isolated", "category": "social_isolation", "severity": 4},
+  {"pattern": "boycott", "category": "social_isolation", "severity": 5},
+  {"pattern": "outcast", "category": "social_isolation", "severity": 5},
+  {"pattern": "exiled", "category": "social_isolation", "severity": 5},
+  {"pattern": "abandoned", "category": "social_isolation", "severity": 4},
+  {"pattern": "nobody to help", "category": "social_isolation", "severity": 4},
+  {"pattern": "no family", "category": "social_isolation", "severity": 3},
+  {"pattern": "evicted", "category": "social_isolation", "severity": 4},
+  {"pattern": "samaj", "category": "social_isolation", "severity": 4},
+  {"pattern": "bahishkar", "category": "social_isolation", "severity": 5},
+  {"pattern": "akela", "category": "social_isolation", "severity": 3},
+  {"pattern": "koi nahi", "category": "social_isolation", "severity": 3},
+  {"pattern": "sunta nahi", "category": "social_isolation", "severity": 3},
+  {"pattern": "koi sunta nahi", "category": "social_isolation", "severity": 5},
+  {"pattern": "log nahi", "category": "social_isolation", "severity": 3},
+  {"pattern": "gaon mein koi", "category": "social_isolation", "severity": 4},
+  {"pattern": "ek baitha", "category": "social_isolation", "severity": 3}
+]
