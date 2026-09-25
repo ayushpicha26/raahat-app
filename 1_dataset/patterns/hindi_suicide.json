@@ -1,0 +1,12 @@
+[
+  {"pattern": "mar jaayein toh behtar hai", "category": "suicidal_ideation", "severity": 5},
+  {"pattern": "koi bacha nahi", "category": "suicidal_ideation", "severity": 5},
+  {"pattern": "jaan se maar", "category": "suicidal_ideation", "severity": 5},
+  {"pattern": "maar jaana", "category": "suicidal_ideation", "severity": 4},
+  {"pattern": "khud ko maar", "category": "suicidal_ideation", "severity": 5},
+  {"pattern": "apna jathan", "category": "suicidal_ideation", "severity": 4},
+  {"pattern": "khud khushi se", "category": "suicidal_ideation", "severity": 3},
+  {"pattern": "jeena nahi", "category": "suicidal_ideation", "severity": 4},
+  {"pattern": "mar jana", "category": "suicidal_ideation", "severity": 4},
+  {"pattern": "kuch bacha nahi", "category": "suicidal_ideation", "severity": 5}
+]

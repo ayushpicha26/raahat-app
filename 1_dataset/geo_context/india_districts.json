@@ -1,0 +1,76 @@
+{
+  "maharashtra": {
+    "state_code": "MH",
+    "districts": [
+      {"name": "mumbai", "risk_multiplier": 1.0, "coordinates": [19.0760, 72.8777]},
+      {"name": "pune", "risk_multiplier": 1.0, "coordinates": [18.5204, 73.8567]},
+      {"name": "nagpur", "risk_multiplier": 1.0, "coordinates": [21.1458, 79.0882]},
+      {"name": "nashik", "risk_multiplier": 1.0, "coordinates": [20.0063, 73.7810]},
+      {"name": "thane", "risk_multiplier": 1.0, "coordinates": [19.2183, 72.9781]},
+      {"name": "kolhapur", "risk_multiplier": 1.0, "coordinates": [16.7050, 74.2433]},
+      {"name": "sangli", "risk_multiplier": 1.0, "coordinates": [16.8524, 74.5815]},
+      {"name": "solapur", "risk_multiplier": 1.0, "coordinates": [17.6599, 75.9064]},
+      {"name": "aurangabad", "risk_multiplier": 1.0, "coordinates": [19.8762, 75.3433]},
+      {"name": "amravati", "risk_multiplier": 1.0, "coordinates": [20.9320, 77.7523]},
+      {"name": "latur", "risk_multiplier": 1.0, "coordinates": [18.4088, 76.5604]},
+      {"name": "jalgaon", "risk_multiplier": 1.0, "coordinates": [21.0077, 75.5626]},
+      {"name": "satara", "risk_multiplier": 1.0, "coordinates": [17.6805, 73.9909]},
+      {"name": "dhule", "risk_multiplier": 1.0, "coordinates": [20.9042, 74.7745]},
+      {"name": "jalna", "risk_multiplier": 1.0, "coordinates": [19.8347, 75.8817]}
+    ]
+  },
+  "uttar_pradesh": {
+    "state_code": "UP",
+    "districts": [
+      {"name": "sant kabir nagar", "risk_multiplier": 1.3, "coordinates": [26.6053, 83.0514]},
+      {"name": "ghazipur", "risk_multiplier": 1.25, "coordinates": [25.5890, 83.5804]},
+      {"name": "varanasi", "risk_multiplier": 1.2, "coordinates": [25.3176, 82.9739]},
+      {"name": "allahabad", "risk_multiplier": 1.15, "coordinates": [25.4358, 81.8463]},
+      {"name": "lucknow", "risk_multiplier": 1.1, "coordinates": [26.8467, 80.9462]},
+      {"name": "kanpur", "risk_multiplier": 1.1, "coordinates": [26.4499, 80.3319]},
+      {"name": "agra", "risk_multiplier": 1.1, "coordinates": [27.1767, 78.0081]},
+      {"name": "meerut", "risk_multiplier": 1.1, "coordinates": [28.9845, 77.7064]},
+      {"name": "raebareli", "risk_multiplier": 1.15, "coordinates": [26.2052, 81.2446]},
+      {"name": "sultanpur", "risk_multiplier": 1.15, "coordinates": [26.2654, 82.0782]},
+      {"name": "faizabad", "risk_multiplier": 1.15, "coordinates": [26.7717, 82.1496]},
+      {"name": "gonda", "risk_multiplier": 1.2, "coordinates": [27.1367, 81.9579]},
+      {"name": "bahraich", "risk_multiplier": 1.25, "coordinates": [27.5787, 81.6011]},
+      {"name": "shravasti", "risk_multiplier": 1.3, "coordinates": [27.6843, 82.0378]},
+      {"name": "balrampur", "risk_multiplier": 1.25, "coordinates": [27.4318, 82.1876]}
+    ]
+  },
+  "bihar": {
+    "state_code": "BR",
+    "districts": [
+      {"name": "patna", "risk_multiplier": 1.1, "coordinates": [25.5941, 85.1376]},
+      {"name": "gaya", "risk_multiplier": 1.15, "coordinates": [24.7914, 85.0004]},
+      {"name": "muzaffarpur", "risk_multiplier": 1.2, "coordinates": [26.1209, 85.3647]},
+      {"name": "darbhanga", "risk_multiplier": 1.15, "coordinates": [26.1508, 85.9045]},
+      {"name": "bhagalpur", "risk_multiplier": 1.1, "coordinates": [25.2452, 87.0036]},
+      {"name": "purnea", "risk_multiplier": 1.2, "coordinates": [25.7805, 87.4747]},
+      {"name": "katihar", "risk_multiplier": 1.25, "coordinates": [25.5375, 87.5802]},
+      {"name": "saharsa", "risk_multiplier": 1.2, "coordinates": [25.8840, 86.6004]},
+      {"name": "samastipur", "risk_multiplier": 1.1, "coordinates": [25.8641, 85.7855]},
+      {"name": "hajipur", "risk_multiplier": 1.1, "coordinates": [25.6848, 85.2096]},
+      {"name": "saran", "risk_multiplier": 1.15, "coordinates": [25.7861, 84.9754]},
+      {"name": "siwan", "risk_multiplier": 1.15, "coordinates": [26.2241, 84.3565]},
+      {"name": "gopalganj", "risk_multiplier": 1.15, "coordinates": [26.4687, 83.8839]},
+      {"name": "madhubani", "risk_multiplier": 1.1, "coordinates": [26.3480, 86.0802]}
+    ]
+  },
+  "madhya_pradesh": {
+    "state_code": "MP",
+    "districts": [
+      {"name": "bhopal", "risk_multiplier": 1.0, "coordinates": [23.2599, 77.4126]},
+      {"name": "indore", "risk_multiplier": 1.0, "coordinates": [22.7196, 75.8577]},
+      {"name": "jabalpur", "risk_multiplier": 1.0, "coordinates": [23.1815, 79.9864]},
+      {"name": "gwalior", "risk_multiplier": 1.0, "coordinates": [26.2183, 78.1828]},
+      {"name": "ujjain", "risk_multiplier": 1.0, "coordinates": [23.1822, 75.7782]},
+      {"name": "satna", "risk_multiplier": 1.05, "coordinates": [24.5802, 80.8299]},
+      {"name": "rewan", "risk_multiplier": 1.05, "coordinates": [23.3639, 81.2949]},
+      {"name": "shahdol", "risk_multiplier": 1.1, "coordinates": [23.2986, 81.3530]},
+      {"name": "khargone", "risk_multiplier": 1.05, "coordinates": [21.8226, 75.6139]},
+      {"name": "khajuraho", "risk_multiplier": 1.05, "coordinates": [24.8317, 80.0786]}
+    ]
+  }
+}

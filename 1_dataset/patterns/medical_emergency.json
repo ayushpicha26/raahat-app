@@ -1,0 +1,17 @@
+[
+  {"pattern": "injured", "category": "medical_emergency", "severity": 5},
+  {"pattern": "injury", "category": "medical_emergency", "severity": 5},
+  {"pattern": "hospital", "category": "medical_emergency", "severity": 3},
+  {"pattern": "doctor", "category": "medical_emergency", "severity": 3},
+  {"pattern": "medicine", "category": "medical_emergency", "severity": 2},
+  {"pattern": "bleed", "category": "medical_emergency", "severity": 5},
+  {"pattern": "bleeding", "category": "medical_emergency", "severity": 5},
+  {"pattern": "broken", "category": "medical_emergency", "severity": 4},
+  {"pattern": "blood", "category": "medical_emergency", "severity": 4},
+  {"pattern": "health", "category": "medical_emergency", "severity": 2},
+  {"pattern": "ill", "category": "medical_emergency", "severity": 2},
+  {"pattern": "dawakhana", "category": "medical_emergency", "severity": 3},
+  {"pattern": "chot", "category": "medical_emergency", "severity": 3},
+  {"pattern": "ghayal", "category": "medical_emergency", "severity": 4},
+  {"pattern": "swasthya", "category": "medical_emergency", "severity": 2}
+]

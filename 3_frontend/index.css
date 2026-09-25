@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-navy-950: #0b1f35;
+  --color-navy-900: #1a3a5c;
+  --color-navy-800: #1e4a75;
+  --color-navy-700: #235a8e;
+  --color-navy-600: #2e6da4;
+  --color-navy-400: #5f90be;
+  --color-navy-300: #8cb4d4;
+  --color-navy-200: #b5cfe4;
+  --color-navy-100: #dde8f4;
+  --color-navy-50:  #f0f5fa;
+
+  --color-slate-25: #fafbfc;
+
+  --color-safe-800: #246642;
+  --color-safe-700: #2e7d52;
+  --color-safe-100: #d4eddf;
+  --color-safe-50:  #eaf6ef;
+
+  --color-amber-700: #b45309;
+  --color-amber-100: #fde8bb;
+  --color-amber-50:  #fef9eb;
+
+  --color-high-700: #c2410c;
+  --color-high-100: #fee2cc;
+  --color-high-50:  #fff5ee;
+
+  --color-critical-700: #9b1c1c;
+  --color-critical-200: #fca5a5;
+  --color-critical-100: #fecaca;
+  --color-critical-50:  #fef2f2;
+
+  --font-sans: "Noto Sans", "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  color: #1a2332;
+  background: #ffffff;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.font-mono, code, pre {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c7d4e0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9eb3c8; }
+
+/* Smooth transitions */
+a, button { transition: all 0.15s ease; }
+
+/* Focus rings */
+:focus-visible {
+  outline: 2px solid #2e6da4;
+  outline-offset: 2px;
+}
+
