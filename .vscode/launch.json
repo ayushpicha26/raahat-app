@@ -5,8 +5,9 @@
       "name": "Launch RAAHAT backend",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/server.mjs",
-      "envFile": "${workspaceFolder}/.env",
+      "program": "${workspaceFolder}/backend/server.mjs",
+      "envFile": "${workspaceFolder}/backend/.env",
+      "cwd": "${workspaceFolder}/backend",
       "console": "integratedTerminal"
     }
   ]

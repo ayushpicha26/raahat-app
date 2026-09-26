@@ -15,6 +15,9 @@ import AdminCaseDetail from "./pages/AdminCaseDetail";
 import GeoAnalysis from "./pages/GeoAnalysis";
 import AdminReports from "./pages/AdminReports";
 import AdminSecurity from "./pages/AdminSecurity";
+import AdminSupportAllocation from "./pages/AdminSupportAllocation";
+import AdminSettings from "./pages/AdminSettings";
+import CounsellorPortal from "./pages/CounsellorPortal";
 
 import ProfilePage from "./pages/ProfilePage";
 import PrivacyPage from "./pages/PrivacyPage";
@@ -52,8 +55,9 @@ export default function App() {
         <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/security" element={<AdminSecurity />} />
         <Route path="/admin/alerts" element={<AdminDashboard />} />
-        <Route path="/admin/support" element={<AdminDashboard />} />
-        <Route path="/admin/settings" element={<AdminDashboard />} />
+        <Route path="/admin/support" element={<AdminSupportAllocation />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
+        <Route path="/counsellor" element={<CounsellorPortal />} />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

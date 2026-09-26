@@ -3,6 +3,11 @@ import { hashPassword, verifyPassword, generateToken, requireAuth, generateOTP }
 import { logAudit } from '../db.mjs';
 
 const router = Router();
+const COUNSELLOR_DEMO_ACCOUNTS = {
+  'CNS-MH-001': { name: 'Dr. Meera Joshi', designation: 'Counsellor — Trauma & Crisis', district: 'Nagpur', email: 'meera.joshi@raahat.gov.in' },
+  'CNS-MH-002': { name: 'Dr. Anjali Deshmukh', designation: 'Counsellor — Women & Family Support', district: 'Pune', email: 'anjali.deshmukh@raahat.gov.in' },
+  'CNS-MH-003': { name: 'Mr. Vikram Kulkarni', designation: 'Counsellor — Youth & Psychosocial Support', district: 'Nashik', email: 'vikram.kulkarni@raahat.gov.in' },
+};
 
 // ── POST /api/auth/register ──
 router.post('/register', async (req, res) => {
@@ -62,21 +67,35 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    if (role === 'admin') {
-      const adminRes = await db.query('SELECT * FROM admins WHERE officer_id = $1', [id]);
-      const admin = adminRes.rows[0];
+    if (role === 'admin' || id.startsWith('ADM-') || id.startsWith('CNS-')) {
+      let adminRes = await db.query('SELECT * FROM admins WHERE officer_id = $1', [id]);
+      let admin = adminRes.rows[0];
+
+      // Demo safety net: supports existing databases that were created before counsellor accounts were added.
+      const counsellor = COUNSELLOR_DEMO_ACCOUNTS[id];
+      if (!admin && counsellor && password === 'counsellor123') {
+        await db.query(
+          `INSERT INTO admins (officer_id, name, designation, department, password_hash, email, district, state)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [id, counsellor.name, counsellor.designation, 'Counselling Services', hashPassword(password), counsellor.email, counsellor.district, 'Maharashtra']
+        );
+        adminRes = await db.query('SELECT * FROM admins WHERE officer_id = $1', [id]);
+        admin = adminRes.rows[0];
+      }
 
       if (!admin || !verifyPassword(password, admin.password_hash)) {
         await logAudit(db, 'ADMIN_LOGIN_FAILED', 'system', 0, 'admin', id, 'Invalid credentials', req.ip);
         return res.status(401).json({ error: 'Invalid Officer ID or password.' });
       }
 
-      const token = generateToken({ id: admin.id, role: 'admin', name: admin.name, officerId: admin.officer_id, district: admin.district });
-      await logAudit(db, 'ADMIN_LOGIN', 'admin', admin.id, 'admin', admin.officer_id, `Admin login: ${admin.name}`, req.ip);
+      const isCounsellor = admin.officer_id.startsWith('CNS-');
+      const accountRole = isCounsellor ? 'counsellor' : 'admin';
+      const token = generateToken({ id: admin.id, role: accountRole, name: admin.name, officerId: admin.officer_id, district: admin.district });
+      await logAudit(db, isCounsellor ? 'COUNSELLOR_LOGIN' : 'ADMIN_LOGIN', 'admin', admin.id, 'admin', admin.officer_id, `${isCounsellor ? 'Counsellor' : 'Admin'} login: ${admin.name}`, req.ip);
 
       return res.json({
         token,
-        user: { id: admin.id, name: admin.name, role: 'admin', officerId: admin.officer_id, designation: admin.designation, department: admin.department, district: admin.district }
+        user: { id: admin.id, name: admin.name, role: accountRole, officerId: admin.officer_id, designation: admin.designation, department: admin.department, district: admin.district }
       });
     }
 

@@ -39,7 +39,9 @@ export default function LoginPage() {
       setToken(response.data.token);
       setUser(response.data.user);
       
-      if (tab === "admin") {
+      if (response.data.user.role === "counsellor") {
+        nav("/counsellor");
+      } else if (tab === "admin") {
         nav("/admin");
       } else {
         nav("/dashboard");
@@ -107,6 +109,14 @@ export default function LoginPage() {
               <p className="text-sm text-slate-500 text-center mb-6">
                 {tab === "user" ? "Login to access your RAAHAT support account" : "Login to the RAAHAT Administration Portal"}
               </p>
+
+              {tab === "admin" && (
+                <div className="mb-5 bg-navy-50 border border-navy-100 rounded p-3 text-xs text-slate-600">
+                  <div className="font-bold text-navy-800 mb-1">Counsellor demo accounts</div>
+                  <div className="font-mono leading-relaxed">CNS-MH-001 / CNS-MH-002 / CNS-MH-003</div>
+                  <div className="mt-1">Password: <span className="font-mono font-semibold">counsellor123</span></div>
+                </div>
+              )}
 
               {tab === "user" && (
                 <div className="flex gap-1 bg-slate-100 p-1 rounded mb-5">

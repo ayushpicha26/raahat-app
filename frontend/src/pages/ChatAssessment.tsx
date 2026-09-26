@@ -184,17 +184,21 @@ export default function ChatAssessment() {
       priorityVal = (res.data.priority || "Moderate") as any;
     } else {
       // Fallback local response
-      const lower = userText.toLowerCase();
-      if (lower.includes("threat") || lower.includes("fear") || lower.includes("unsafe") || lower.includes("kill") || lower.includes("attack") || lower.includes("dhamki")) {
-        aiReply = `I understand how distressing this is. Your safety is our top priority. If you are in immediate danger, please call 112 or 14566. Can you tell me — are you currently in a safe place?`;
-        sviVal = 85;
+      const lower = userText.toLowerCase().trim();
+      if (/^(hi|hii|hiii|hello|hey|heyy|namaste|pranam|good morning|good afternoon|good evening|start|help)\b/i.test(lower) || lower === 'hi' || lower === 'hii' || lower === 'hello' || lower === 'hey') {
+        aiReply = `Namaste! I am RAAHAT assistant. How can I help you today? Please feel free to share whatever you are experiencing.`;
+        sviVal = 32;
+        priorityVal = "Low";
+      } else if (lower.includes("suicid") || lower.includes("self-harm") || lower.includes("threat") || lower.includes("fear") || lower.includes("unsafe") || lower.includes("kill") || lower.includes("attack") || lower.includes("dhamki")) {
+        aiReply = `I understand how distressing this is. Your safety is our top priority. If you are in immediate danger, please call 112 or 14416. Can you tell me — are you currently in a safe place?`;
+        sviVal = 88;
         priorityVal = "Critical";
       } else if (lower.includes("police") || lower.includes("court") || lower.includes("fir") || lower.includes("lawyer")) {
         aiReply = `Thank you for explaining the legal challenges you're facing. RAAHAT can connect you with authorized legal aid officers (DLSA) in your district. Shall I arrange this?`;
         sviVal = 68;
         priorityVal = "High";
       } else {
-        aiReply = `Thank you for sharing that. I am here to help you get the support you need. Tell me a bit more about how this has affected you and if you have any family members with you.`;
+        aiReply = `Thank you for reaching out. I am here to assist you. Could you please share more about your situation so I can help guide you to the right resources?`;
         sviVal = 48;
         priorityVal = "Moderate";
       }
@@ -220,13 +224,6 @@ export default function ChatAssessment() {
       text: aiReply,
       time: getNow(),
     }]);
-
-    // Redirect user to assessment result page once conversation is complete
-    if (nextTurn >= 3 || userText.toLowerCase().includes("emergency") || userText.toLowerCase().includes("unsafe")) {
-      setTimeout(() => {
-        nav("/assessment-result");
-      }, 2500);
-    }
   }
 
   return (
@@ -239,26 +236,31 @@ export default function ChatAssessment() {
               <h1 className="font-bold text-navy-900 flex items-center gap-2">
                 RAAHAT Support Assistant
                 <span className="text-[10px] bg-navy-100 text-navy-800 font-semibold px-2 py-0.5 rounded flex items-center gap-1">
-                  <Sparkles size={10} /> Real-Time
+                  <Sparkles size={10} /> Powered by Gemini
                 </span>
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">Share only what you are comfortable sharing. This conversation is confidential.</p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Globe size={14} />
-              <select
-                value={selectedLang}
-                onChange={e => {
-                  setSelectedLang(e.target.value);
-                  if (isListening) {
-                    stopListening();
-                    setTimeout(() => startListening(), 200);
-                  }
-                }}
-                className="text-xs font-medium text-navy-900 bg-transparent border border-slate-200 rounded px-2 py-1 outline-none cursor-pointer"
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => nav("/assessment-result")}
+                className="text-xs bg-navy-900 hover:bg-navy-800 text-white font-medium px-3 py-1.5 rounded transition-colors shadow-xs"
               >
-                {["English", "हिंदी", "मराठी"].map(l => <option key={l}>{l}</option>)}
-              </select>
+                View Assessment Report →
+              </button>
+              <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded">
+                <Globe size={13} />
+                <select
+                  value={selectedLang}
+                  onChange={e => {
+                    setSelectedLang(e.target.value);
+                    if (isListening) stopListening();
+                  }}
+                  className="bg-transparent text-xs text-slate-700 outline-none cursor-pointer"
+                >
+                  {["English", "हिंदी", "मराठी"].map(l => <option key={l}>{l}</option>)}
+                </select>
+              </div>
             </div>
           </div>
         </div>

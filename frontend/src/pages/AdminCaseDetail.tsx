@@ -5,6 +5,8 @@ import { PriorityBadge, StatusBadge } from "../components/Badge";
 import { ChevronLeft, ChevronDown, ChevronUp, AlertCircle, CheckCircle, User, Gavel, HeartPulse, ArrowUp, RefreshCw, Flag, MessageSquare } from "lucide-react";
 import { api } from "../utils/api";
 
+const COUNSELLORS = ["Dr. Meera Joshi", "Dr. Anjali Deshmukh", "Mr. Vikram Kulkarni"];
+
 function SviExplain({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   return (
     <div className="bg-slate-50 border border-slate-200 rounded mb-4 shadow-2xs">
@@ -37,6 +39,7 @@ export default function AdminCaseDetail() {
   const [loading, setLoading] = useState(true);
   const [sviOpen, setSviOpen] = useState(false);
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [selectedCounsellor, setSelectedCounsellor] = useState(COUNSELLORS[0]);
 
   useEffect(() => {
     loadCase();
@@ -79,7 +82,7 @@ export default function AdminCaseDetail() {
   async function handleAssign(service: string) {
     setConfirm(null);
     setLoading(true);
-    const officerName = service === "Counselling" ? "Dr. Meera Joshi" : service === "Legal Aid" ? "DLSA Legal Officer" : "District Medical Officer";
+    const officerName = service === "Counselling" ? selectedCounsellor : service === "Legal Aid" ? "DLSA Legal Officer" : "District Medical Officer";
     const res = await api.put<{ ok: boolean }>(`/cases/${id}/assign`, {
       officer: officerName,
       service: service
@@ -112,6 +115,27 @@ export default function AdminCaseDetail() {
   };
 
   const assignedLabel = caseData.assigned_officer ? `${caseData.assigned_officer} (${caseData.assigned_service})` : (caseData.assigned_service || "Pending Assignment");
+  const problemTypeLabel = caseData.problemTypes?.length
+    ? caseData.problemTypes.map((p: any) => typeof p === "string" ? p : p.label).join(", ")
+    : "General support need";
+  const topRecommendation = caseData.recommendations?.[0]?.title || "Complete an urgent safety and support assessment";
+  const casePoints = [
+    {
+      title: "Immediate concern",
+      text: `${caseData.priority || "High"} priority (SVI ${caseData.svi}/100): prompt human review is needed to assess current safety.`,
+      tone: caseData.svi >= 80 ? "border-critical-200 bg-critical-50/40" : "border-amber-200 bg-amber-50/40",
+    },
+    {
+      title: "What was reported",
+      text: `The reported concern is ${problemTypeLabel.toLowerCase()}, with the submitted testimony indicating distress and a need for support.`,
+      tone: "border-navy-100 bg-navy-50/40",
+    },
+    {
+      title: "Suggested next step",
+      text: `${topRecommendation}. Confirm the person's immediate needs and contact details before acting.`,
+      tone: "border-safe-200 bg-safe-50/40",
+    },
+  ];
 
   return (
     <AdminLayout>
@@ -170,6 +194,20 @@ export default function AdminCaseDetail() {
               {caseData.summary || "No assessment summary generated."}
             </SummarySection>
 
+            <SummarySection title="Three-Point Case Brief">
+              <div className="grid gap-2 md:grid-cols-3 mt-1">
+                {casePoints.map((point, index) => (
+                  <div key={point.title} className={`rounded-lg border p-3 ${point.tone}`}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-navy-700 shadow-xs">{index + 1}</span>
+                      <span className="text-xs font-bold text-navy-900">{point.title}</span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-700">{point.text}</p>
+                  </div>
+                ))}
+              </div>
+            </SummarySection>
+
             {caseData.indicators && caseData.indicators.length > 0 && (
               <SummarySection title="Detected Vulnerability Indicators">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
@@ -211,7 +249,11 @@ export default function AdminCaseDetail() {
             <div>
               {confirm === "assign-counsellor" ? (
                 <div className="border border-amber-300 bg-amber-50 rounded p-2 text-center shadow-sm">
-                  <p className="text-xs text-amber-800 mb-2 font-medium">Assign Dr. Meera Joshi?</p>
+                  <label className="block text-left text-[11px] text-amber-800 mb-1 font-medium">Select counsellor</label>
+                  <select value={selectedCounsellor} onChange={e => setSelectedCounsellor(e.target.value)} className="w-full text-xs border border-amber-200 rounded bg-white px-2 py-1.5 text-slate-700 mb-2">
+                    {COUNSELLORS.map(counsellor => <option key={counsellor}>{counsellor}</option>)}
+                  </select>
+                  <p className="text-xs text-amber-800 mb-2 font-medium">Assign {selectedCounsellor}?</p>
                   <div className="flex justify-center gap-1.5">
                     <button onClick={() => handleAssign("Counselling")} className="text-[11px] font-bold bg-navy-900 text-white px-2.5 py-1 rounded">Yes</button>
                     <button onClick={() => setConfirm(null)} className="text-[11px] text-slate-500 px-2.5 py-1 rounded border border-slate-200 bg-white">No</button>

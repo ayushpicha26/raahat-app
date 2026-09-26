@@ -38,7 +38,8 @@ export function performAiAssessment(text: string, durationSeconds: number = 0, l
   const lower = clean.toLowerCase();
 
   // Pattern detection
-  const criticalThreat = /kill|die|murder|attack|weapon|lynch|burn|poison|beaten|assault|danger|emergency|immediate threat|marna|dhamki|jaan|hinsa|maar/.test(lower);
+  const suicideRisk = /suicid|self-harm|selfharm|kill myself|harm myself|end my life|end life|take my life|want to die|wanna die|hang myself|hanging|atmanahatya|atmatya|zahar|mar jau|mar jana/.test(lower);
+  const criticalThreat = suicideRisk || /kill|die|murder|attack|weapon|lynch|burn|poison|beaten|assault|danger|emergency|immediate threat|marna|dhamki|jaan|hinsa|maar/.test(lower);
   const fearDistress = /fear|afraid|scared|terror|panic|threat|unsafe|threaten|threatened|scary|terrified|dar|darr|khauf|chinta|ghamrahat/.test(lower);
   const emotionalDistress = /cry|crying|hopeless|depressed|sad|tears|grief|cannot sleep|insomnia|trauma|pain|hurt|distress|tanaav|rona|dukh/.test(lower);
   const socialIsolation = /alone|no one|isolated|boycott|outcast|exiled|abandoned|nobody to help|no family|evicted|samaj|bahishkar|akela|koi nahi/.test(lower);
@@ -49,7 +50,8 @@ export function performAiAssessment(text: string, durationSeconds: number = 0, l
 
   // Score Calculation
   let baseScore = 40;
-  if (criticalThreat) baseScore += 42;
+  if (suicideRisk) baseScore += 48;
+  else if (criticalThreat) baseScore += 42;
   else if (fearDistress) baseScore += 26;
 
   if (emotionalDistress) baseScore += 18;
@@ -82,6 +84,7 @@ export function performAiAssessment(text: string, durationSeconds: number = 0, l
 
   // Problem Types
   const problemTypes: { label: string; color: "critical" | "high" | "amber" | "safe" }[] = [];
+  if (suicideRisk) problemTypes.push({ label: "Crisis & Suicide Risk", color: "critical" });
   if (criticalThreat || fearDistress) problemTypes.push({ label: "Threat / Intimidation", color: "critical" });
   if (medicalNeed) problemTypes.push({ label: "Physical Safety & Medical Risk", color: "critical" });
   if (discrimination) problemTypes.push({ label: "Identity-based Discrimination", color: "high" });
@@ -177,6 +180,18 @@ export function performAiAssessment(text: string, durationSeconds: number = 0, l
 
   // Tailored Recommendations
   const recommendations: SupportRecommendation[] = [];
+
+  if (suicideRisk) {
+    recommendations.push({
+      title: "Tele-MANAS Crisis Helpline (14416)",
+      priority: "Immediate Attention",
+      priorityColor: "text-critical-700 bg-critical-50 border-critical-100",
+      iconType: "heart",
+      desc: "Live crisis intervention support available 24/7. Call Tele-MANAS helpline 14416 or 14566 immediately.",
+      cta: "Call Crisis Helpline (14416)",
+      urgent: true,
+    });
+  }
 
   if (criticalThreat || fearDistress || safetyScore >= 70) {
     recommendations.push({

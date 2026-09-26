@@ -1,53 +1,35 @@
-import Database from 'better-sqlite3';
+import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 dotenv.config();
 
+const { Pool } = pg;
+
 let pool = null;
-
-class SQLiteWrapper {
-  constructor(db) {
-    this.db = db;
-  }
-  
-  async query(sql, params = []) {
-    // Replace $1, $2, etc with ?
-    const convertedSql = sql.replace(/\$\d+/g, '?');
-    
-    // Convert boolean params to 1/0 for sqlite
-    const convertedParams = params.map(p => typeof p === 'boolean' ? (p ? 1 : 0) : p);
-    
-    const stmt = this.db.prepare(convertedSql);
-    
-    if (stmt.reader) {
-      const rows = stmt.all(...convertedParams);
-      return { rows };
-    } else {
-      const info = stmt.run(...convertedParams);
-      return { rows: [] }; // PG returns empty rows for standard inserts without returning
-    }
-  }
-
-  async connect() {
-    return {
-      query: this.query.bind(this),
-      release: () => {},
-    };
-  }
-
-  on(event, cb) {
-    // mock for pg pool.on('error', ...)
-  }
-}
 
 export async function getDB() {
   if (pool) return pool;
 
-  const db = new Database('raahat.db');
-  db.pragma('journal_mode = WAL');
-  
-  pool = new SQLiteWrapper(db);
-  console.log('✅ Connected to SQLite database');
+  const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/raahat';
+  const isSSL = connectionString.includes('sslmode=require') || connectionString.includes('neon.tech') || connectionString.includes('supabase.co');
+
+  pool = new Pool({
+    connectionString,
+    ssl: isSSL ? { rejectUnauthorized: false } : false,
+  });
+
+  // Handle connection errors gracefully
+  pool.on('error', (err) => {
+    console.error('Unexpected error on idle PostgreSQL client', err);
+  });
+
+  try {
+    const client = await pool.connect();
+    console.log('✅ Connected to PostgreSQL database');
+    client.release();
+  } catch (err) {
+    console.warn('⚠️ Could not establish initial PostgreSQL connection:', err.message);
+  }
 
   // ── Schema Initialization ──
   await initSchema(pool);
@@ -57,10 +39,9 @@ export async function getDB() {
 
 async function initSchema(p) {
   try {
-    // Create tables (converting SERIAL to INTEGER PRIMARY KEY AUTOINCREMENT)
     await p.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         mobile TEXT UNIQUE,
         email TEXT UNIQUE,
@@ -78,11 +59,9 @@ async function initSchema(p) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `);
-    
-    await p.query(`
+
       CREATE TABLE IF NOT EXISTS admins (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         officer_id TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
         designation TEXT DEFAULT '',
@@ -94,11 +73,9 @@ async function initSchema(p) {
         state TEXT DEFAULT 'Maharashtra',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `);
 
-    await p.query(`
       CREATE TABLE IF NOT EXISTS cases (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         case_id TEXT UNIQUE NOT NULL,
         user_id INTEGER REFERENCES users(id),
         transcript TEXT NOT NULL,
@@ -122,11 +99,9 @@ async function initSchema(p) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `);
 
-    await p.query(`
       CREATE TABLE IF NOT EXISTS help_centers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         type TEXT NOT NULL CHECK(type IN ('shelter','police','legal','ngo','hospital','helpline')),
         latitude REAL NOT NULL,
@@ -138,31 +113,25 @@ async function initSchema(p) {
         timings TEXT DEFAULT '24/7',
         services TEXT DEFAULT ''
       );
-    `);
 
-    await p.query(`
       CREATE TABLE IF NOT EXISTS assessment_factors (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         case_id TEXT NOT NULL REFERENCES cases(case_id),
         label TEXT NOT NULL,
         value INTEGER NOT NULL,
         contribution TEXT,
         confidence TEXT DEFAULT 'High'
       );
-    `);
 
-    await p.query(`
       CREATE TABLE IF NOT EXISTS assessment_indicators (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         case_id TEXT NOT NULL REFERENCES cases(case_id),
         indicator TEXT NOT NULL,
         level TEXT NOT NULL
       );
-    `);
 
-    await p.query(`
       CREATE TABLE IF NOT EXISTS recommendations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         case_id TEXT NOT NULL REFERENCES cases(case_id),
         title TEXT NOT NULL,
         priority TEXT,
@@ -174,11 +143,9 @@ async function initSchema(p) {
         scheme_code TEXT,
         helpline TEXT
       );
-    `);
 
-    await p.query(`
       CREATE TABLE IF NOT EXISTS audit_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         action TEXT NOT NULL,
         actor_type TEXT CHECK(actor_type IN ('user','admin','system')),
         actor_id INTEGER,
@@ -188,30 +155,26 @@ async function initSchema(p) {
         ip_address TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE INDEX IF NOT EXISTS idx_cases_user ON cases(user_id);
+      CREATE INDEX IF NOT EXISTS idx_cases_priority ON cases(priority);
+      CREATE INDEX IF NOT EXISTS idx_cases_status ON cases(status);
+      CREATE INDEX IF NOT EXISTS idx_factors_case ON assessment_factors(case_id);
+      CREATE INDEX IF NOT EXISTS idx_indicators_case ON assessment_indicators(case_id);
+      CREATE INDEX IF NOT EXISTS idx_recommendations_case ON recommendations(case_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+      CREATE INDEX IF NOT EXISTS idx_help_centers_type ON help_centers(type);
     `);
 
-    await p.query('CREATE INDEX IF NOT EXISTS idx_cases_user ON cases(user_id);');
-    await p.query('CREATE INDEX IF NOT EXISTS idx_cases_priority ON cases(priority);');
-    await p.query('CREATE INDEX IF NOT EXISTS idx_cases_status ON cases(status);');
-    await p.query('CREATE INDEX IF NOT EXISTS idx_factors_case ON assessment_factors(case_id);');
-    await p.query('CREATE INDEX IF NOT EXISTS idx_indicators_case ON assessment_indicators(case_id);');
-    await p.query('CREATE INDEX IF NOT EXISTS idx_recommendations_case ON recommendations(case_id);');
-    await p.query('CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);');
-    await p.query('CREATE INDEX IF NOT EXISTS idx_help_centers_type ON help_centers(type);');
-
     // ── Seed if empty ──
-    const caseRes = await p.query('SELECT COUNT(*) as c FROM cases');
     const userRes = await p.query('SELECT COUNT(*) as c FROM users');
-    if (parseInt(caseRes.rows[0]?.c || 0, 10) === 0 || parseInt(userRes.rows[0]?.c || 0, 10) === 0) {
+    if (parseInt(userRes.rows[0].c, 10) === 0) {
       await seedDatabase(p);
     }
 
-    // Ensure counsellor demo accounts are available even when the database was seeded earlier.
-    await seedCounsellorAccounts(p);
-
     // ── Seed help centers if empty ──
     const hcRes = await p.query('SELECT COUNT(*) as c FROM help_centers');
-    if (parseInt(hcRes.rows[0]?.c || 0, 10) === 0) {
+    if (parseInt(hcRes.rows[0].c, 10) === 0) {
       await seedHelpCenters(p);
     }
   } catch (err) {
@@ -249,25 +212,20 @@ async function seedDatabase(p) {
     );
   }
 
-  const counsellorPass = bcrypt.hashSync('counsellor123', salt);
+  // ── Seed Admin ──
+  await p.query(
+    `INSERT INTO admins (officer_id, name, designation, department, password_hash, email, phone, district, state)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (officer_id) DO NOTHING`,
+    ['ADM-MH-001', 'Dr. Anjali Deshmukh', 'District Collector', 'Revenue & Welfare', adminPass, 'anjali.deshmukh@gov.in', '020-25501000', 'Pune', 'Maharashtra']
+  );
 
-  // ── Seed Admin & Counsellors ──
-  const admins = [
-    ['ADM-MH-001', 'Dr. Anjali Deshmukh', 'District Collector', 'Revenue & Welfare', adminPass, 'anjali.deshmukh@gov.in', '020-25501000', 'Pune', 'Maharashtra'],
-    ['ADM-MH-002', 'Shri Rajesh Patil', 'SP (Atrocity Cell)', 'Police', adminPass, 'rajesh.patil@police.gov.in', '020-26127337', 'Nagpur', 'Maharashtra'],
-    ['CNS-MH-001', 'Dr. Meera Joshi', 'Counsellor — Trauma & Crisis', 'Counselling Services', counsellorPass, 'meera.joshi@raahat.gov.in', '0712-2560123', 'Nagpur', 'Maharashtra'],
-    ['CNS-MH-002', 'Dr. Anjali Deshmukh', 'Counsellor — Women & Family Support', 'Counselling Services', counsellorPass, 'anjali.deshmukh@raahat.gov.in', '020-25501000', 'Pune', 'Maharashtra'],
-    ['CNS-MH-003', 'Mr. Vikram Kulkarni', 'Counsellor — Youth & Psychosocial Support', 'Counselling Services', counsellorPass, 'vikram.kulkarni@raahat.gov.in', '0253-2578901', 'Nashik', 'Maharashtra'],
-  ];
-
-  for (const a of admins) {
-    await p.query(
-      `INSERT INTO admins (officer_id, name, designation, department, password_hash, email, phone, district, state)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT (officer_id) DO UPDATE SET password_hash = excluded.password_hash`,
-      a
-    );
-  }
+  await p.query(
+    `INSERT INTO admins (officer_id, name, designation, department, password_hash, email, phone, district, state)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (officer_id) DO NOTHING`,
+    ['ADM-MH-002', 'Shri Rajesh Patil', 'SP (Atrocity Cell)', 'Police', adminPass, 'rajesh.patil@police.gov.in', '020-26127337', 'Nagpur', 'Maharashtra']
+  );
 
   // ── Seed Cases ──
   const casesData = [
@@ -344,24 +302,14 @@ async function seedDatabase(p) {
       r
     );
   }
-}
 
-async function seedCounsellorAccounts(p) {
-  const counsellorPass = bcrypt.hashSync('counsellor123', bcrypt.genSaltSync(10));
-  const counsellors = [
-    ['CNS-MH-001', 'Dr. Meera Joshi', 'Counsellor — Trauma & Crisis', 'Counselling Services', 'meera.joshi@raahat.gov.in', 'Nagpur'],
-    ['CNS-MH-002', 'Dr. Anjali Deshmukh', 'Counsellor — Women & Family Support', 'Counselling Services', 'anjali.deshmukh@raahat.gov.in', 'Pune'],
-    ['CNS-MH-003', 'Mr. Vikram Kulkarni', 'Counsellor — Youth & Psychosocial Support', 'Counselling Services', 'vikram.kulkarni@raahat.gov.in', 'Nashik'],
-  ];
+  // ── Audit log ──
+  await p.query(
+    `INSERT INTO audit_log (action, actor_type, actor_id, details) VALUES ($1, $2, $3, $4)`,
+    ['DATABASE_SEEDED', 'system', 0, 'Initial seed with 12 users, 2 admins, 12 cases']
+  );
 
-  for (const [officerId, name, designation, department, email, district] of counsellors) {
-    await p.query(
-      `INSERT INTO admins (officer_id, name, designation, department, password_hash, email, district, state)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (officer_id) DO NOTHING`,
-      [officerId, name, designation, department, counsellorPass, email, district, 'Maharashtra']
-    );
-  }
+  console.log('✅ PostgreSQL database seeded with demo data.');
 }
 
 async function seedHelpCenters(p) {
@@ -403,7 +351,7 @@ async function seedHelpCenters(p) {
     );
   }
 
-  console.log(`✅ Seeded ${centers.length} help centers in SQLite.`);
+  console.log(`✅ Seeded ${centers.length} help centers in PostgreSQL.`);
 }
 
 export async function logAudit(db, action, actorType, actorId, targetType, targetId, details, ip) {

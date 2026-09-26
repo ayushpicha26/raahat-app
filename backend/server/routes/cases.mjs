@@ -106,8 +106,13 @@ router.get('/', requireAuth, async (req, res) => {
     const conditions = [];
     const params = [];
 
-    // Citizens only see their own cases
-    if (req.user.role !== 'admin') {
+    // Counsellors can only see cases explicitly assigned to them.
+    if (req.user.role === 'counsellor') {
+      params.push(req.user.name);
+      conditions.push(`assigned_officer = $${params.length}`);
+      conditions.push(`assigned_service = 'Counselling'`);
+    // Citizens only see their own cases.
+    } else if (req.user.role !== 'admin') {
       params.push(req.user.id);
       conditions.push(`user_id = $${params.length}`);
     }
@@ -179,8 +184,10 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     if (!c) return res.status(404).json({ error: 'Case not found.' });
 
-    // Citizens can only view their own cases
-    if (req.user.role !== 'admin' && c.user_id !== req.user.id) {
+    // Counsellors can only open cases explicitly allocated to them.
+    const counsellorHasAssignment = req.user.role === 'counsellor' && c.assigned_service === 'Counselling' && c.assigned_officer === req.user.name;
+    // Citizens can only view their own cases.
+    if (req.user.role !== 'admin' && !counsellorHasAssignment && c.user_id !== req.user.id) {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
@@ -261,6 +268,29 @@ router.put('/:id/assign', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// ── PUT /api/cases/:id/revoke-assignment — Return a case to the allocation queue ──
+router.put('/:id/revoke-assignment', requireAuth, requireAdmin, async (req, res) => {
+  const db = req.app.locals.db;
+
+  try {
+    const caseRes = await db.query('SELECT svi, assigned_officer, assigned_service FROM cases WHERE case_id = $1', [req.params.id]);
+    const caseItem = caseRes.rows[0];
+    if (!caseItem) return res.status(404).json({ error: 'Case not found.' });
+
+    const nextStatus = Number(caseItem.svi) >= 80 ? 'Human Review Required' : 'Assessment Pending';
+    await db.query(
+      `UPDATE cases SET assigned_officer = '', assigned_service = '', status = $1, updated_at = CURRENT_TIMESTAMP WHERE case_id = $2`,
+      [nextStatus, req.params.id]
+    );
+    await logAudit(db, 'CASE_ASSIGNMENT_REVOKED', 'admin', req.user.id, 'case', req.params.id, `Revoked: ${caseItem.assigned_officer} (${caseItem.assigned_service})`, req.ip);
+
+    res.json({ ok: true, message: 'Support allocation revoked.' });
+  } catch (err) {
+    console.error('Case assignment revoke error:', err);
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  }
+});
+
 // ── GET /api/admin/stats — Dashboard stats ──
 router.get('/admin/stats', requireAuth, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
@@ -286,9 +316,9 @@ router.get('/admin/stats', requireAuth, requireAdmin, async (req, res) => {
       db.query("SELECT COUNT(*) as c FROM cases WHERE priority = 'Low'"),
       db.query("SELECT COUNT(*) as c FROM cases WHERE status IN ('Assessment Pending', 'Under Review', 'Human Review Required')"),
       db.query("SELECT COUNT(*) as c FROM cases WHERE status IN ('Resolved', 'Closed')"),
-      db.query('SELECT ROUND(AVG(svi)::numeric, 1) as avg FROM cases'),
+      db.query('SELECT ROUND(AVG(svi), 1) as avg FROM cases'),
       db.query('SELECT COUNT(*) as c FROM users'),
-      db.query('SELECT district, COUNT(*) as cases, ROUND(AVG(svi)::numeric, 1) as "avgSvi" FROM cases GROUP BY district ORDER BY cases DESC'),
+      db.query('SELECT district, COUNT(*) as cases, ROUND(AVG(svi), 1) as "avgSvi" FROM cases GROUP BY district ORDER BY cases DESC'),
       db.query('SELECT c.*, u.name as holder FROM cases c LEFT JOIN users u ON c.user_id = u.id ORDER BY c.created_at DESC LIMIT 10')
     ]);
 

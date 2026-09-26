@@ -25,12 +25,116 @@ classifier.addDocument('i need a doctor or hospital', 'medical');
 classifier.addDocument('my bones are broken', 'medical');
 classifier.train();
 
+import { GoogleGenAI } from '@google/genai';
+
+// System prompt for Gemini AI assessment
+const GEMINI_ASSESSMENT_PROMPT = `You are RAAHAT AI, an advanced vulnerability assessment system for social safety, domestic abuse, crisis, caste discrimination, and emergency support in India.
+Analyze the provided user input transcript and respond ONLY with a valid JSON object with the exact following structure:
+{
+  "svi": number (Social Vulnerability Index score from 28 to 96. If suicide, self-harm, physical danger, or acute violence is mentioned, score MUST be 85-96),
+  "priority": "Critical" | "High" | "Moderate" | "Low",
+  "priorityLabel": "CRITICAL PRIORITY" | "HIGH PRIORITY" | "MODERATE PRIORITY" | "LOW PRIORITY",
+  "summary": string (2-3 sentences summarizing the situation, threat level, and recommended human verification),
+  "problemTypes": [ { "label": string, "color": "critical" | "high" | "amber" | "safe" } ],
+  "factors": [ { "label": string, "value": number (0-100), "contrib": "Critical" | "High" | "Moderate" | "Low", "conf": "High" | "Moderate" | "Standard" } ],
+  "indicators": [ [ string, string ] ],
+  "consequences": string,
+  "recommendations": [
+    {
+      "title": string,
+      "priority": string,
+      "desc": string,
+      "iconType": "shield" | "message" | "gavel" | "heart" | "shield-check" | "home",
+      "cta": string,
+      "urgent": boolean
+    }
+  ]
+}`;
+
 export async function performServerAssessment(text, durationSeconds = 0, lang = 'English') {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `${GEMINI_ASSESSMENT_PROMPT}\n\nUser Input Transcript: "${text}"\nLanguage: ${lang}`,
+        config: {
+          responseMimeType: 'application/json'
+        }
+      });
+
+      if (response && response.text) {
+        const parsed = JSON.parse(response.text);
+        return {
+          ...parsed,
+          aiMode: 'gemini-2.5-flash',
+          languageDetected: lang,
+          audioDurationSeconds: durationSeconds
+        };
+      }
+    } catch (err) {
+      console.warn('⚠️ Gemini AI Assessment failed, falling back to local NLP:', err.message);
+    }
+  }
+
   return localAssessment(text, durationSeconds, lang);
 }
 
 export async function performChatResponse(messages, lang = 'English') {
   const lastMsg = messages[messages.length - 1]?.text || '';
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (apiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const prompt = `You are RAAHAT AI, an empathetic, highly intelligent, and practical assistant supporting citizens in India regarding legal aid, social justice, safety, mental health, and government welfare schemes.
+
+Conversation History:
+${messages.map(m => `${m.role === 'user' ? 'User' : 'RAAHAT Assistant'}: ${m.text}`).join('\n')}
+
+Latest Message from User: "${lastMsg}"
+Language Preferred: ${lang}
+
+Instructions:
+1. Act like an advanced conversational AI (like Gemini / ChatGPT). Understand the exact intent, sentiment, context, and question of the user.
+2. If it is a greeting (hi, hello, namaste, hey, etc.), reply warmly and ask how you can assist them today without assuming any trauma.
+3. If the user asks a question, answer it accurately, helpfully, and clearly in natural conversational language matching their tone and language.
+4. If the user shares a personal struggle, problem, discrimination, violence, or legal issue: show deep empathy and provide clear, actionable steps (e.g. DLSA legal aid, Sakhi One Stop Centres, police 112, emergency 14416 / 14566).
+5. Determine accurate Social Vulnerability Index (svi: 28-96, where 28-35 = casual/greeting, 40-60 = moderate distress/inquiry, 70-96 = severe danger/suicide/abuse) and priority ("Critical" | "High" | "Moderate" | "Low").
+
+Respond strictly in valid JSON format:
+{
+  "reply": string,
+  "svi": number,
+  "priority": "Critical" | "High" | "Moderate" | "Low",
+  "summary": string
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: prompt,
+        config: { responseMimeType: 'application/json' }
+      });
+
+      if (response && response.text) {
+        const parsed = JSON.parse(response.text);
+        const base = localAssessment(lastMsg, 0, lang);
+        return {
+          ...base,
+          svi: parsed.svi || base.svi,
+          priority: parsed.priority || base.priority,
+          priorityLabel: (parsed.priority || base.priority).toUpperCase() + ' PRIORITY',
+          summary: parsed.summary || base.summary,
+          reply: parsed.reply || localChatReply(lastMsg, messages.length),
+          aiMode: 'gemini-flash-latest'
+        };
+      }
+    } catch (err) {
+      console.warn('⚠️ Gemini Chat AI failed, falling back to local NLP:', err.message);
+    }
+  }
+
   return {
     ...localAssessment(lastMsg, 0, lang),
     reply: localChatReply(lastMsg, messages.length),
@@ -39,11 +143,16 @@ export async function performChatResponse(messages, lang = 'English') {
 }
 
 function localChatReply(text, turnCount) {
-  const lower = text.toLowerCase();
+  const lower = text.toLowerCase().trim();
   
+  // Greeting check first
+  if (/^(hi|hii|hiii|hello|hey|heyy|namaste|pranam|good morning|good afternoon|good evening|start|help)\b/i.test(lower) || lower === 'hi' || lower === 'hii' || lower === 'hello' || lower === 'hey') {
+    return 'Namaste! I am RAAHAT assistant. How can I help you today? Please feel free to share whatever you are experiencing.';
+  }
+
   // Use regex for critical exact matches first
-  if (/kill|attack|unsafe|danger|emergency|threat/.test(lower)) {
-    return 'I understand how distressing this is. Your safety is our top priority. If you are in immediate danger, please call 112 or the victim helpline at 14566. Can you tell me — are you currently in a safe place?';
+  if (/kill|attack|unsafe|danger|emergency|threat|suicid|self-harm|end my life|want to die/.test(lower)) {
+    return 'I understand how distressing this is. Your safety is our top priority. If you are in immediate danger, please call 112 or the crisis helpline at 14416 / 14566. Can you tell me — are you currently in a safe place?';
   }
   
   // Use NLP classifier for nuanced matching
@@ -62,7 +171,7 @@ function localChatReply(text, turnCount) {
     return 'If you are injured, please seek immediate medical attention. RAAHAT can help cover medical expenses for victims. Do you need an ambulance?';
   }
   if (turnCount <= 2) {
-    return 'Thank you for sharing that. I understand this may be difficult. Can you tell me more about how this situation has affected you and your family? Are you currently safe?';
+    return 'Thank you for reaching out. I am here to assist you. Could you please share more about your situation so I can help guide you to the right resources?';
   }
   return 'Thank you for sharing all of this. Based on what you have told me, I have prepared a preliminary vulnerability assessment. Your case summary and recommendations are being generated now.';
 }
@@ -74,7 +183,8 @@ function localAssessment(text, durationSeconds, lang) {
   const tokenizer = new natural.WordTokenizer();
   const tokens = tokenizer.tokenize(lower);
   
-  const criticalThreat = /kill|die|murder|attack|weapon|lynch|burn|beaten|assault|danger|emergency|marna|dhamki|jaan|hinsa/.test(lower);
+  const suicideRisk = /suicid|self-harm|selfharm|kill myself|harm myself|end my life|end life|take my life|want to die|wanna die|hang myself|hanging|atmanahatya|atmatya|zahar|mar jau|mar jana/.test(lower);
+  const criticalThreat = suicideRisk || /kill|die|murder|attack|weapon|lynch|burn|poison|beaten|assault|danger|emergency|immediate threat|marna|dhamki|jaan|hinsa|maar/.test(lower);
   const fearDistress = /fear|afraid|scared|terror|panic|threat|unsafe|threaten|dar|khauf/.test(lower);
   const emotionalDistress = /cry|hopeless|depressed|sad|tears|grief|sleep|insomnia|trauma|tanaav|rona|dukh/.test(lower) || tokens.includes('sad') || tokens.includes('depressed');
   const socialIsolation = /alone|isolated|boycott|outcast|abandoned|nobody|samaj|bahishkar|akela/.test(lower);
@@ -88,7 +198,16 @@ function localAssessment(text, durationSeconds, lang) {
   let factors = [];
   let recommendations = [];
 
-  if (criticalThreat) {
+  if (suicideRisk) {
+    svi += 48;
+    indicators.push(["Crisis / Self-Harm & Suicide Risk", "Critical"]);
+    problemTypes.push({ label: "Crisis & Suicide Risk", color: "critical" });
+    factors.push({ label: "Self-Harm / Suicide Risk", value: 95, contrib: "Critical", conf: "High" });
+    recommendations.push({
+      title: "Tele-MANAS Crisis Helpline (14416)", priority: "Immediate",
+      desc: "Connect with 24/7 free mental health counselling & crisis intervention line.", iconType: "heart", cta: "Call Helpline (14416)", urgent: true
+    });
+  } else if (criticalThreat) {
     svi += 42;
     indicators.push(["Life Threat / Physical Violence", "Critical"]);
     problemTypes.push({ label: "Physical Safety", color: "critical" });
@@ -106,7 +225,7 @@ function localAssessment(text, durationSeconds, lang) {
   if (emotionalDistress) {
     svi += 18;
     indicators.push(["Emotional Trauma", "High"]);
-    problemTypes.push({ label: "Mental Health", color: "high" });
+    if (!suicideRisk) problemTypes.push({ label: "Mental Health", color: "high" });
     factors.push({ label: "Emotional Distress", value: 80, contrib: "High", conf: "Standard" });
     recommendations.push({
       title: "Trauma Counselling", priority: "High",
@@ -158,7 +277,8 @@ function localAssessment(text, durationSeconds, lang) {
   if (problemTypes.length === 0) problemTypes.push({ label: "General Support", color: "safe" });
 
   const summaryElements = [
-    criticalThreat && 'immediate threats to safety',
+    suicideRisk && 'acute crisis and self-harm/suicide risk',
+    criticalThreat && !suicideRisk && 'immediate threats to safety',
     medicalNeed && 'medical injuries',
     discrimination && 'caste discrimination',
     emotionalDistress && 'severe emotional distress',
