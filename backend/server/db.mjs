@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -43,11 +44,31 @@ class SQLiteWrapper {
 export async function getDB() {
   if (pool) return pool;
 
-  const db = new Database('raahat.db');
-  db.pragma('journal_mode = WAL');
-  
-  pool = new SQLiteWrapper(db);
-  console.log('✅ Connected to SQLite database');
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
+    const isSSL = dbUrl.includes('sslmode=require') || dbUrl.includes('neon.tech') || dbUrl.includes('supabase.co');
+    pool = new pg.Pool({
+      connectionString: dbUrl,
+      ssl: isSSL ? { rejectUnauthorized: false } : false,
+    });
+    try {
+      const client = await pool.connect();
+      console.log('✅ Connected to PostgreSQL database');
+      client.release();
+    } catch (err) {
+      console.warn('⚠️ Could not connect to PostgreSQL, falling back to SQLite:', err.message);
+      pool = null;
+    }
+  }
+
+  if (!pool) {
+    const dbPath = process.env.DATABASE_PATH || (process.env.VERCEL ? '/tmp/raahat.db' : 'raahat.db');
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+    
+    pool = new SQLiteWrapper(db);
+    console.log(`✅ Connected to SQLite database at ${dbPath}`);
+  }
 
   // ── Schema Initialization ──
   await initSchema(pool);

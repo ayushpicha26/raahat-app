@@ -113,6 +113,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`RAAHAT Production API Server listening on port ${port} (PostgreSQL)`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`RAAHAT Production API Server listening on port ${port}`);
+  });
+}
+
+export default app;
