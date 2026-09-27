@@ -12,20 +12,38 @@ class SQLiteWrapper {
   }
   
   async query(sql, params = []) {
+    let cleanSql = sql.trim();
     // Replace $1, $2, etc with ?
-    const convertedSql = sql.replace(/\$\d+/g, '?');
+    const convertedSql = cleanSql.replace(/\$\d+/g, '?');
     
     // Convert boolean params to 1/0 for sqlite
     const convertedParams = params.map(p => typeof p === 'boolean' ? (p ? 1 : 0) : p);
     
-    const stmt = this.db.prepare(convertedSql);
+    const hasReturning = /RETURNING\s+/i.test(convertedSql);
     
-    if (stmt.reader) {
-      const rows = stmt.all(...convertedParams);
-      return { rows };
-    } else {
-      const info = stmt.run(...convertedParams);
-      return { rows: [] }; // PG returns empty rows for standard inserts without returning
+    try {
+      const stmt = this.db.prepare(convertedSql);
+      
+      if (stmt.reader) {
+        const rows = stmt.all(...convertedParams);
+        return { rows: rows || [] };
+      } else if (hasReturning) {
+        try {
+          const rows = stmt.all(...convertedParams);
+          return { rows: rows || [] };
+        } catch {
+          const info = stmt.run(...convertedParams);
+          const lastId = typeof info.lastInsertRowid === 'bigint' ? Number(info.lastInsertRowid) : info.lastInsertRowid;
+          return { rows: [{ id: lastId, ...info }] };
+        }
+      } else {
+        const info = stmt.run(...convertedParams);
+        const lastId = typeof info.lastInsertRowid === 'bigint' ? Number(info.lastInsertRowid) : info.lastInsertRowid;
+        return { rows: [{ id: lastId, ...info }] };
+      }
+    } catch (err) {
+      console.error(`SQLite query error: ${err.message}\nSQL: ${convertedSql}`);
+      throw err;
     }
   }
 

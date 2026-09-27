@@ -74,9 +74,16 @@ async function request<T>(
       return { ok: false, error: data.error || "Invalid credentials." };
     }
 
-    const data = await response.json();
+    let data: any = {};
+    const text = await response.text();
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { error: text || `Server returned status ${response.status}` };
+    }
+
     if (!response.ok) {
-      return { ok: false, error: data.error || `Request failed with status ${response.status}` };
+      return { ok: false, error: data.error || data.message || `Request failed (${response.status})` };
     }
 
     return { ok: true, data };
