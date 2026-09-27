@@ -235,12 +235,20 @@ async function initSchema(p) {
         category TEXT DEFAULT '',
         language TEXT DEFAULT 'English',
         case_id TEXT,
+        account_type TEXT DEFAULT 'registered',
+        is_guest INTEGER DEFAULT 0,
+        guest_id TEXT,
         latitude REAL,
         longitude REAL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Ensure columns exist on already-initialized databases
+    try { await p.query("ALTER TABLE users ADD COLUMN account_type TEXT DEFAULT 'registered'"); } catch {}
+    try { await p.query("ALTER TABLE users ADD COLUMN is_guest INTEGER DEFAULT 0"); } catch {}
+    try { await p.query("ALTER TABLE users ADD COLUMN guest_id TEXT"); } catch {}
     
     await p.query(`
       CREATE TABLE IF NOT EXISTS admins (

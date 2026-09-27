@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RaahatLogo from "../components/RaahatLogo";
+import { api, getUser, setToken, setUser } from "../utils/api";
 import {
   Shield, MessageCircle, ChevronRight, ChevronDown, Phone, Lock, Globe, Eye,
   Gavel, HeartPulse, ShieldCheck, Home, ShieldAlert, X, Languages, ClipboardList,
@@ -193,6 +194,32 @@ export default function FrontPage() {
 
   const handleQuickExit = () => {
     window.location.href = "https://www.google.com";
+  };
+
+  const [loadingHelp, setLoadingHelp] = useState(false);
+
+  const handleGetHelpNow = async () => {
+    const user = getUser();
+    if (user) {
+      nav("/dashboard");
+      return;
+    }
+
+    setLoadingHelp(true);
+    try {
+      const res = await api.post<{ token: string; user: any }>("/auth/guest");
+      if (res.ok && res.data) {
+        setToken(res.data.token);
+        setUser(res.data.user);
+        nav("/dashboard");
+      } else {
+        nav("/register");
+      }
+    } catch {
+      nav("/register");
+    } finally {
+      setLoadingHelp(false);
+    }
   };
 
   return (
@@ -474,10 +501,11 @@ export default function FrontPage() {
               {/* Primary & Secondary Action Buttons */}
               <div className="flex flex-wrap items-center gap-3.5 mb-8">
                 <button
-                  onClick={() => nav("/register")}
+                  onClick={handleGetHelpNow}
+                  disabled={loadingHelp}
                   className="flex items-center gap-2.5 px-6 py-3.5 bg-white text-[#0d233a] text-sm font-semibold rounded-lg shadow-md hover:bg-slate-100 hover:shadow-lg transition-all cursor-pointer"
                 >
-                  <span>Get Support</span>
+                  <span>Get Help Now</span>
                   <ChevronRight size={17} strokeWidth={2.5} />
                 </button>
                 <button

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RaahatLogo from "../components/RaahatLogo";
+import { api, getUser, setToken, setUser } from "../utils/api";
 import {
   Shield, MessageCircle, ChevronRight, ChevronDown, Phone, Lock, Globe, Eye,
   Gavel, HeartPulse, ShieldCheck, Home, ShieldAlert, X, Languages, ClipboardList,
@@ -193,6 +194,32 @@ export default function FrontPage() {
 
   const handleQuickExit = () => {
     window.location.href = "https://www.google.com";
+  };
+
+  const [loadingHelp, setLoadingHelp] = useState(false);
+
+  const handleGetHelpNow = async () => {
+    const user = getUser();
+    if (user) {
+      nav("/dashboard");
+      return;
+    }
+
+    setLoadingHelp(true);
+    try {
+      const res = await api.post<{ token: string; user: any }>("/auth/guest");
+      if (res.ok && res.data) {
+        setToken(res.data.token);
+        setUser(res.data.user);
+        nav("/dashboard");
+      } else {
+        nav("/register");
+      }
+    } catch {
+      nav("/register");
+    } finally {
+      setLoadingHelp(false);
+    }
   };
 
   return (
@@ -438,17 +465,20 @@ export default function FrontPage() {
             background: "linear-gradient(135deg, #071f3a 0%, #0a294e 45%, #0e3462 100%)",
           }}
         >
-          {/* Right Side Artwork: Clean illustration without Gemini logo */}
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-[55%] lg:w-[60%] overflow-hidden select-none hidden md:block">
-            <img
-              src="/hero-illustration-clean.png"
-              alt=""
-              className="h-full w-full object-cover object-left"
-              style={{
-                maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 10%, rgba(0,0,0,1) 22%)",
-                WebkitMaskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 10%, rgba(0,0,0,1) 22%)",
-              }}
-            />
+          {/* Right Side Artwork: High-definition 4K illustration */}
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-[55%] lg:w-[62%] overflow-hidden select-none hidden md:block">
+            <picture>
+              <source srcSet="/hero-illustration-clean.webp" type="image/webp" />
+              <img
+                src="/hero-illustration-clean.png"
+                alt="Ashoka Chakra and State Emblem of India"
+                className="h-full w-full object-cover object-right"
+                style={{
+                  maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 10%, rgba(0,0,0,1) 22%)",
+                  WebkitMaskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 10%, rgba(0,0,0,1) 22%)",
+                }}
+              />
+            </picture>
           </div>
 
           {/* Left Content Area */}
@@ -474,10 +504,11 @@ export default function FrontPage() {
               {/* Primary & Secondary Action Buttons */}
               <div className="flex flex-wrap items-center gap-3.5 mb-8">
                 <button
-                  onClick={() => nav("/register")}
+                  onClick={handleGetHelpNow}
+                  disabled={loadingHelp}
                   className="flex items-center gap-2.5 px-6 py-3.5 bg-white text-[#0d233a] text-sm font-semibold rounded-lg shadow-md hover:bg-slate-100 hover:shadow-lg transition-all cursor-pointer"
                 >
-                  <span>Get Support</span>
+                  <span>Get Help Now</span>
                   <ChevronRight size={17} strokeWidth={2.5} />
                 </button>
                 <button

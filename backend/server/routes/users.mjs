@@ -57,6 +57,61 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// ── POST /api/auth/guest ──
+router.post('/guest', async (req, res) => {
+  const db = req.app.locals.db;
+
+  try {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const guestId = `GST-${timestamp}-${randomSuffix}`;
+
+    const caseNum = Math.floor(10000 + Math.random() * 90000);
+    const caseId = `RAH-${new Date().getFullYear()}-${caseNum}`;
+    const guestName = 'Guest User';
+    const pwdHash = hashPassword(guestId);
+
+    const result = await db.query(
+      `INSERT INTO users (name, password_hash, state, district, language, case_id, account_type, is_guest, guest_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id`,
+      [guestName, pwdHash, 'Maharashtra', '', 'English', caseId, 'guest', 1, guestId]
+    );
+
+    const newUserId = result.rows[0].id;
+    const token = generateToken({
+      id: newUserId,
+      role: 'citizen',
+      name: guestName,
+      caseId,
+      account_type: 'guest',
+      is_guest: true,
+      guestId
+    });
+
+    await logAudit(db, 'GUEST_USER_CREATED', 'user', newUserId, 'user', String(newUserId), `Guest user session created: ${guestId}`, req.ip);
+
+    res.status(201).json({
+      token,
+      user: {
+        id: newUserId,
+        guestId,
+        name: guestName,
+        role: 'citizen',
+        account_type: 'guest',
+        is_guest: true,
+        caseId,
+        state: 'Maharashtra',
+        district: '',
+        language: 'English'
+      }
+    });
+  } catch (err) {
+    console.error('Guest creation error:', err);
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  }
+});
+
 // ── POST /api/auth/login ──
 router.post('/login', async (req, res) => {
   const { id, password, role } = req.body;
@@ -143,7 +198,10 @@ router.get('/me', requireAuth, async (req, res) => {
       id: user.id, name: user.name, role: 'citizen', mobile: user.mobile, email: user.email,
       alternatePhone: user.alternate_phone,
       caseId: user.case_id, state: user.state, district: user.district, category: user.category,
-      language: user.language, dob: user.dob, createdAt: user.created_at
+      language: user.language, dob: user.dob, createdAt: user.created_at,
+      account_type: user.account_type || 'registered',
+      is_guest: Boolean(user.is_guest),
+      guestId: user.guest_id || null
     });
   } catch (err) {
     console.error('Auth/me error:', err);
