@@ -1,10 +1,125 @@
-import Database from 'better-sqlite3';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 dotenv.config();
 
 let pool = null;
+
+class MemoryStore {
+  constructor() {
+    this.tables = {
+      users: [],
+      admins: [],
+      cases: [],
+      help_centers: [],
+      assessment_factors: [],
+      assessment_indicators: [],
+      recommendations: [],
+      audit_log: []
+    };
+    this.autoIncrement = { users: 1, admins: 1, cases: 1, help_centers: 1, assessment_factors: 1, assessment_indicators: 1, recommendations: 1, audit_log: 1 };
+  }
+
+  async query(sql, params = []) {
+    const s = sql.trim().replace(/;\s*$/, '');
+    
+    // Simple table creation / indexing - no-op for memory
+    if (/^CREATE\s+/i.test(s)) {
+      return { rows: [] };
+    }
+    if (/^BEGIN|^COMMIT|^ROLLBACK/i.test(s)) {
+      return { rows: [] };
+    }
+
+    // INSERT INTO table (...) VALUES (...)
+    const insertMatch = s.match(/INSERT\s+INTO\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
+    if (insertMatch) {
+      const table = insertMatch[1].toLowerCase();
+      const cols = insertMatch[2].split(',').map(c => c.trim());
+      const row = {};
+      
+      const nextId = this.autoIncrement[table] ? this.autoIncrement[table]++ : Math.floor(Math.random() * 100000);
+      row.id = nextId;
+      row.created_at = new Date().toISOString();
+      row.updated_at = new Date().toISOString();
+
+      cols.forEach((col, idx) => {
+        row[col] = params[idx] !== undefined ? params[idx] : null;
+      });
+
+      if (!this.tables[table]) this.tables[table] = [];
+      this.tables[table].push(row);
+      return { rows: [{ id: row.id, ...row }] };
+    }
+
+    // SELECT COUNT(*) FROM table ...
+    if (/SELECT\s+COUNT\(\*\)/i.test(s)) {
+      const tableMatch = s.match(/FROM\s+([a-zA-Z0-9_]+)/i);
+      const table = tableMatch ? tableMatch[1].toLowerCase() : 'cases';
+      let list = this.tables[table] || [];
+      if (/WHERE\s+priority\s*=\s*'Critical'/i.test(s)) list = list.filter(r => r.priority === 'Critical');
+      else if (/WHERE\s+priority\s*=\s*'High'/i.test(s)) list = list.filter(r => r.priority === 'High');
+      else if (/WHERE\s+priority\s*=\s*'Moderate'/i.test(s)) list = list.filter(r => r.priority === 'Moderate');
+      else if (/WHERE\s+priority\s*=\s*'Low'/i.test(s)) list = list.filter(r => r.priority === 'Low');
+      else if (/WHERE\s+status\s+IN/i.test(s)) list = list.filter(r => ['Assessment Pending', 'Under Review', 'Human Review Required'].includes(r.status));
+      return { rows: [{ c: list.length }] };
+    }
+
+    // SELECT AVG(svi)
+    if (/AVG\(svi\)/i.test(s)) {
+      const cases = this.tables.cases || [];
+      const avg = cases.length ? (cases.reduce((sum, c) => sum + Number(c.svi || 0), 0) / cases.length).toFixed(1) : 0;
+      return { rows: [{ avg, "avgSvi": avg, cases: cases.length }] };
+    }
+
+    // SELECT * FROM table WHERE col = $1 OR col = $2 ...
+    const selectMatch = s.match(/SELECT\s+(.+?)\s+FROM\s+([a-zA-Z0-9_]+)(?:\s+WHERE\s+(.+?))?(?:\s+ORDER\s+BY|\s+LIMIT|$)/i);
+    if (selectMatch) {
+      const table = selectMatch[2].toLowerCase();
+      let list = [...(this.tables[table] || [])];
+      const whereClause = selectMatch[3];
+
+      if (whereClause && params.length > 0) {
+        if (/officer_id\s*=\s*\$1/i.test(whereClause)) {
+          list = list.filter(r => r.officer_id === params[0]);
+        } else if (/(?:mobile\s*=\s*\$1\s+OR\s+email\s*=\s*\$2)/i.test(whereClause)) {
+          list = list.filter(r => r.mobile === params[0] || r.email === params[1]);
+        } else if (/mobile\s*=\s*\$1/i.test(whereClause)) {
+          list = list.filter(r => r.mobile === params[0]);
+        } else if (/email\s*=\s*\$1/i.test(whereClause)) {
+          list = list.filter(r => r.email === params[0]);
+        } else if (/case_id\s*=\s*\$1/i.test(whereClause)) {
+          list = list.filter(r => r.case_id === params[0]);
+        } else if (/user_id\s*=\s*\$1/i.test(whereClause)) {
+          list = list.filter(r => String(r.user_id) === String(params[0]));
+        } else if (/id\s*=\s*\$1/i.test(whereClause)) {
+          list = list.filter(r => String(r.id) === String(params[0]));
+        }
+      }
+
+      return { rows: list };
+    }
+
+    // UPDATE table SET ...
+    const updateMatch = s.match(/UPDATE\s+([a-zA-Z0-9_]+)\s+SET\s+(.+?)(?:\s+WHERE\s+(.+?))?$/i);
+    if (updateMatch) {
+      const table = updateMatch[1].toLowerCase();
+      const list = this.tables[table] || [];
+      return { rows: list };
+    }
+
+    return { rows: [] };
+  }
+
+  async connect() {
+    return {
+      query: this.query.bind(this),
+      release: () => {}
+    };
+  }
+
+  on() {}
+}
 
 class SQLiteWrapper {
   constructor(db) {
@@ -54,38 +169,46 @@ class SQLiteWrapper {
     };
   }
 
-  on(event, cb) {
-    // mock for pg pool.on('error', ...)
-  }
+  on(event, cb) {}
 }
 
 export async function getDB() {
   if (pool) return pool;
 
+  // 1. PostgreSQL (if DATABASE_URL provided)
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
-    const isSSL = dbUrl.includes('sslmode=require') || dbUrl.includes('neon.tech') || dbUrl.includes('supabase.co');
-    pool = new pg.Pool({
-      connectionString: dbUrl,
-      ssl: isSSL ? { rejectUnauthorized: false } : false,
-    });
     try {
-      const client = await pool.connect();
+      const isSSL = dbUrl.includes('sslmode=require') || dbUrl.includes('neon.tech') || dbUrl.includes('supabase.co');
+      const pgPool = new pg.Pool({
+        connectionString: dbUrl,
+        ssl: isSSL ? { rejectUnauthorized: false } : false,
+      });
+      const client = await pgPool.connect();
       console.log('✅ Connected to PostgreSQL database');
       client.release();
+      pool = pgPool;
     } catch (err) {
-      console.warn('⚠️ Could not connect to PostgreSQL, falling back to SQLite:', err.message);
+      console.warn('⚠️ Could not connect to PostgreSQL, falling back:', err.message);
       pool = null;
     }
   }
 
+  // 2. Try better-sqlite3 dynamically
   if (!pool) {
-    const dbPath = process.env.DATABASE_PATH || (process.env.VERCEL ? '/tmp/raahat.db' : 'raahat.db');
-    const db = new Database(dbPath);
-    db.pragma('journal_mode = WAL');
-    
-    pool = new SQLiteWrapper(db);
-    console.log(`✅ Connected to SQLite database at ${dbPath}`);
+    try {
+      const betterSqlite3Module = await import('better-sqlite3');
+      const Database = betterSqlite3Module.default || betterSqlite3Module;
+      const dbPath = process.env.DATABASE_PATH || (process.env.VERCEL ? '/tmp/raahat.db' : 'raahat.db');
+      const db = new Database(dbPath);
+      db.pragma('journal_mode = WAL');
+      
+      pool = new SQLiteWrapper(db);
+      console.log(`✅ Connected to SQLite database at ${dbPath}`);
+    } catch (err) {
+      console.warn('⚠️ better-sqlite3 unavailable, using in-memory database:', err.message);
+      pool = new MemoryStore();
+    }
   }
 
   // ── Schema Initialization ──

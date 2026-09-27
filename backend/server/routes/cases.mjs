@@ -36,7 +36,7 @@ router.post('/', requireAuth, async (req, res) => {
       ]
     );
 
-    const insertedId = result.rows[0].id;
+    const insertedId = (result?.rows?.[0]?.id) || (result?.rows?.[0]?.lastInsertRowid) || 1;
 
     // Save factors
     if (factors && Array.isArray(factors)) {

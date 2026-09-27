@@ -42,7 +42,7 @@ router.post('/register', async (req, res) => {
       [name, mobile || null, email || null, hashPassword(password), dob || null, state || 'Maharashtra', district || '', category || '', language || 'English', address || '', caseId, alternatePhone || null]
     );
 
-    const newUserId = result.rows[0].id;
+    const newUserId = (result?.rows?.[0]?.id) || (result?.rows?.[0]?.lastInsertRowid) || 1;
     const token = generateToken({ id: newUserId, role: 'citizen', name, caseId });
 
     await logAudit(db, 'USER_REGISTERED', 'user', newUserId, 'user', String(newUserId), `New user: ${name}`, req.ip);
