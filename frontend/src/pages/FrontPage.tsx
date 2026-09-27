@@ -465,17 +465,20 @@ export default function FrontPage() {
             background: "linear-gradient(135deg, #071f3a 0%, #0a294e 45%, #0e3462 100%)",
           }}
         >
-          {/* Right Side Artwork: Clean illustration without Gemini logo */}
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-[55%] lg:w-[60%] overflow-hidden select-none hidden md:block">
-            <img
-              src="/hero-illustration-clean.png"
-              alt=""
-              className="h-full w-full object-cover object-left"
-              style={{
-                maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 10%, rgba(0,0,0,1) 22%)",
-                WebkitMaskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 10%, rgba(0,0,0,1) 22%)",
-              }}
-            />
+          {/* Right Side Artwork: High-definition 4K illustration */}
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-[55%] lg:w-[62%] overflow-hidden select-none hidden md:block">
+            <picture>
+              <source srcSet="/hero-illustration-clean.webp" type="image/webp" />
+              <img
+                src="/hero-illustration-clean.png"
+                alt="Ashoka Chakra and State Emblem of India"
+                className="h-full w-full object-cover object-right"
+                style={{
+                  maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 10%, rgba(0,0,0,1) 22%)",
+                  WebkitMaskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 10%, rgba(0,0,0,1) 22%)",
+                }}
+              />
+            </picture>
           </div>
 
           {/* Left Content Area */}
