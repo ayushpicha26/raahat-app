@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UserLayout from "../components/UserLayout";
-import { Mic, MessageSquare, AlertCircle, Clock, Shield, ChevronRight, CheckCircle, Sparkles } from "lucide-react";
+import { Mic, MessageSquare, AlertCircle, Clock, Shield, ChevronRight, CheckCircle, Sparkles, HeartHandshake, Phone, Video } from "lucide-react";
 import { StatusBadge } from "../components/Badge";
 import { getStoredAssessment } from "../utils/assessmentStore";
 import { api, getUser } from "../utils/api";
@@ -23,10 +23,29 @@ export default function UserDashboard() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [activeCase, setActiveCase] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [assignedCounselor, setAssignedCounselor] = useState<any>(() => {
+    const saved = localStorage.getItem("raahat_selected_counselor");
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {
+      name: "Dr. Meera Joshi",
+      designation: "Senior Clinical Psychologist — Trauma & Crisis Care",
+      district: "Nagpur",
+      languages: ["Marathi", "Hindi", "English"],
+      availability: "Available Now",
+      avatar: "MJ"
+    };
+  });
 
   useEffect(() => {
     const user = getUser();
     setCurrentUser(user);
+
+    const saved = localStorage.getItem("raahat_selected_counselor");
+    if (saved) {
+      try { setAssignedCounselor(JSON.parse(saved)); } catch {}
+    }
 
     // Fetch user's cases from API
     if (user) {
@@ -89,6 +108,47 @@ export default function UserDashboard() {
           <button onClick={() => nav("/medical")} className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-700 text-white text-xs font-bold rounded hover:bg-red-800 transition shrink-0 cursor-pointer">
             Locate Nearest Hospital <ChevronRight size={12} />
           </button>
+        </div>
+
+        {/* Counselor Support Card */}
+        <div className="bg-white border border-teal-200 rounded-xl p-5 mb-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-12 h-12 rounded-full bg-teal-700 text-white font-bold flex items-center justify-center text-sm shrink-0 border-2 border-teal-400">
+              {assignedCounselor?.avatar || "MJ"}
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-teal-100 text-teal-800 px-2 py-0.5 rounded">
+                  Assigned Counselor
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-teal-700 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                  {assignedCounselor?.availability || "Available Now"}
+                </span>
+              </div>
+              <h3 className="font-bold text-navy-950 text-base leading-tight">
+                {assignedCounselor?.name || "Dr. Meera Joshi"}
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {assignedCounselor?.designation || "Senior Clinical Psychologist"} • {assignedCounselor?.district || "Nagpur"} ({Array.isArray(assignedCounselor?.languages) ? assignedCounselor.languages.join(", ") : "Marathi, Hindi, English"})
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => nav("/counselor-support")}
+              className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Phone size={13} /> Call / Chat
+            </button>
+            <button
+              onClick={() => nav("/counselor-support")}
+              className="px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <HeartHandshake size={13} className="text-teal-600" /> Choose Counselor
+            </button>
+          </div>
         </div>
 
         {/* Main actions */}

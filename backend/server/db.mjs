@@ -105,6 +105,13 @@ class MemoryStore {
     if (updateMatch) {
       const table = updateMatch[1].toLowerCase();
       const list = this.tables[table] || [];
+      if (table === 'users' && /counselor_id\s*=\s*\$1/i.test(updateMatch[2]) && /id\s*=\s*\$2/i.test(updateMatch[3] || '')) {
+        const user = list.find(row => String(row.id) === String(params[1]));
+        if (!user) return { rows: [] };
+        user.counselor_id = params[0];
+        user.updated_at = new Date().toISOString();
+        return { rows: [{ ...user }] };
+      }
       return { rows: list };
     }
 
@@ -234,6 +241,7 @@ async function initSchema(p) {
         address TEXT DEFAULT '',
         category TEXT DEFAULT '',
         language TEXT DEFAULT 'English',
+        counselor_id TEXT DEFAULT '',
         case_id TEXT,
         account_type TEXT DEFAULT 'registered',
         is_guest INTEGER DEFAULT 0,
@@ -249,6 +257,7 @@ async function initSchema(p) {
     try { await p.query("ALTER TABLE users ADD COLUMN account_type TEXT DEFAULT 'registered'"); } catch {}
     try { await p.query("ALTER TABLE users ADD COLUMN is_guest INTEGER DEFAULT 0"); } catch {}
     try { await p.query("ALTER TABLE users ADD COLUMN guest_id TEXT"); } catch {}
+    try { await p.query("ALTER TABLE users ADD COLUMN counselor_id TEXT DEFAULT ''"); } catch {}
     
     await p.query(`
       CREATE TABLE IF NOT EXISTS admins (

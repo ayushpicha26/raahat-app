@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import RaahatLogo from "./RaahatLogo";
 import {
-  LayoutDashboard, FolderOpen, Mic, MessageSquare, Star, FileText, User, Lock, LogOut, Menu, X, Globe, Bell, Phone, MapPin, Hospital
+  LayoutDashboard, FolderOpen, Mic, MessageSquare, Star, FileText, User, Lock, LogOut, Menu, X, Globe, Bell, Phone, MapPin, Hospital, HeartHandshake
 } from "lucide-react";
 import { getUser, removeToken, clearUser } from "../utils/api";
 
 const NAV = [
   { icon: <LayoutDashboard size={16} />, label: "Dashboard", path: "/dashboard" },
+  { icon: <HeartHandshake size={16} className="text-teal-600" />, label: "Counselor Support", path: "/counselor-support" },
   { icon: <FolderOpen size={16} />, label: "My Case", path: "/my-case" },
   { icon: <MapPin size={16} />, label: "Nearby Help", path: "/nearby-help" },
   { icon: <Hospital size={16} className="text-red-600" />, label: "Medical Help", path: "/medical" },

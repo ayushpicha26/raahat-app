@@ -9,6 +9,7 @@ import { getDB } from './server/db.mjs';
 import { authMiddleware } from './server/auth.mjs';
 import authRouter from './server/routes/users.mjs';
 import caseRouter from './server/routes/cases.mjs';
+import counselorRouter from './server/routes/counselors.mjs';
 import { assessRoute, verifyCasteCertificateRoute } from './server/ai.mjs';
 import { getGovernmentData } from './server/data/governmentSchemes.mjs';
 
@@ -48,6 +49,7 @@ app.get('/api/health', async (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/cases', caseRouter);
+app.use('/api/counselors', counselorRouter);
 app.post('/api/ai/assess', assessRoute);
 app.post('/api/ai/verify-document', verifyCasteCertificateRoute);
 app.get('/api/government-data', getGovernmentData);
